@@ -221,6 +221,7 @@ class Link(models.Model):
         return False
     
     def deleteService(self):
+        print(self.service)
         if self.delete_tunnel(self.service):
             self.service = None
             self.save()

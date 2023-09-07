@@ -102,7 +102,9 @@ export default function Reservation() {
                   </div>
                 </div>
                 <div className="hidden sm:flex sm:flex-row sm:items-center">
-                <button className="text-sm font-medium border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-100">
+                <button 
+                onClick={() => redirect(`/viewreservation/${reservation.id}`)}
+                className="text-sm font-medium border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-100">
                   View Reservation
                 </button>
                 <div className="relative inline-block text-left ml-2">

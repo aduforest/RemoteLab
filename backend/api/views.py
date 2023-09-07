@@ -178,6 +178,7 @@ def update_reservation(request, pk):
         duration = request.data['duration']
         request.data['end'] = datetime.datetime.now() + datetime.timedelta(hours=int(duration))
         request.data.pop('duration')
+        request.data['creator']=request.user.id
 
     serializer = ReservationSerializer(data=request.data)
     if serializer.is_valid():
@@ -429,6 +430,7 @@ def disconnect(request):
                 if linkA.dut.reserv.creator != request.user or linkB.dut.reserv.creator != request.user:
                     back.append({"Fail" : "One of the DUTs is not yours."})
                     continue
+
 
                 if linkA.dut == linkB.dut:
                     if linkA.deleteService() or linkB.deleteService():

@@ -37,7 +37,7 @@ export default function UpdateReservation() {
     .catch(error => {
       console.error('Error fetching reservation:', error);
     });
-  }, [id, authHeader]);
+  }, [id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

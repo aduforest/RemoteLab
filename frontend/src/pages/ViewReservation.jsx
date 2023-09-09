@@ -9,29 +9,71 @@ export default function ViewReservation() {
   const [duts, setDuts] = useState([]);
   const authHeader = useAuthHeader();
   const { id } = useParams();
+  const [dutLinks, setDutLinks] = useState({});
+  const connectedDUTsByService = {};
+  Object.values(dutLinks).forEach(links => {
+    links.connected.forEach(link => {
+      if (!connectedDUTsByService[link.service]) {
+        connectedDUTsByService[link.service] = [];
+      }
+      connectedDUTsByService[link.service].push(link.dut);
+    });
+  });
+  const getDUTPosition = (index) => {
+    const angle = index * (360 / duts.length);
+    const radians = (angle * Math.PI) / 180;
+    const x = 250 + 250 * Math.sin(radians); // 250 is half of circle-container width/height
+    const y = 250 - 250 * Math.cos(radians); // Adjust based on desired radius
+    return { x, y };
+  };
+  const lines = [];
+  Object.values(connectedDUTsByService).forEach(duts => {
+    if (duts.length > 1) {
+      const startPos = getDUTPosition(duts[0]);
+      const endPos = getDUTPosition(duts[1]);
+      lines.push({ start: startPos, end: endPos });
+    }
+  });
 
   useEffect(() => {
-    Axios.get(`get_reservation/${id}/`, {
-      headers: {
-        'Authorization': authHeader()
+    const fetchData = async () => {
+      try {
+        const reservationResponse = await Axios.get(`get_reservation/${id}/`, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+        setReservation(reservationResponse.data);
+  
+        const dutsResponse = await Axios.get(`list_dut/?reserv=${id}`, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+        const fetchedDuts = dutsResponse.data.duts;
+        setDuts(fetchedDuts);
+  
+        const linkResponses = await Promise.all(fetchedDuts.map(dut => 
+          Axios.get(`list_link/?dut=${dut.id}`, {
+            headers: {
+              'Authorization': authHeader()
+            }
+          })
+        ));
+  
+        const links = {};
+        linkResponses.forEach((response, index) => {
+          links[fetchedDuts[index].id] = response.data;
+        });
+        setDutLinks(links);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       }
-    })
-    .then(response => {
-      setReservation(response.data);
-      // Fetch DUTs associated with this reservation
-      return Axios.get(`list_dut/?reserv=${id}`, {
-        headers: {
-          'Authorization': authHeader()
-        }
-      });
-    })
-    .then(response => {
-      setDuts(response.data.duts);
-    })
-    .catch(error => {
-      console.error('Error fetching data:', error);
-    });
+    };
+  
+    fetchData();
   }, [id]);
+
 
   const getImageForDut = (dutName) => {
     if (dutName.startsWith('OS6865')) {
@@ -92,35 +134,86 @@ export default function ViewReservation() {
           </p>
         </div>
         <div className="container mt-20 my-12 mx-auto px-4 md:px-12">
-        <h2 class="text-2xl font-bold tracking-tight text-gray-900 mb-4">Reserved Equipment</h2>
-          <div className="flex flex-wrap -mx-1 lg:-mx-4">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-4">Reserved Equipment</h2>
+          <div className="circle-container mt-20">
+          {lines.map((line, index) => (
+            <div
+              key={index}
+              className="link-line"
+              style={{
+                top: `${line.start.y}px`,
+                left: `${line.start.x}px`,
+                width: `${Math.sqrt(
+                  Math.pow(line.end.x - line.start.x, 2) +
+                    Math.pow(line.end.y - line.start.y, 2)
+                )}px`,
+                transform: `rotate(${Math.atan2(
+                  line.end.y - line.start.y,
+                  line.end.x - line.start.x
+                )}rad)`,
+              }}
+            ></div>
+          ))}
             {duts.map((dut, index) => (
-              <div key={index} className="my-1 px-1 w-full md:w-1/2 lg:my-4 lg:px-4 lg:w-1/3">
-                <article className="overflow-hidden rounded-lg bg-white-100">
-                  <a href="#">
-                    <img alt="DUT" className="block h-auto w-full" src={getImageForDut(dut.model)} />
+              <div key={index} className="node-card" style={{
+                transform: `rotate(${index * (360 / duts.length)}deg) translateY(-250px) rotate(-${index * (360 / duts.length)}deg)` // Adjust translateY value based on desired radius
+                }}>
+                <img alt="DUT" className="block h-auto w-full" src={getImageForDut(dut.model)} />
+                <h1 className="text-sm mt-2">
+                  <a className="no-underline hover:underline text-black" href="#">
+                    {dut.model}
                   </a>
-                  <header className="flex flex-col items-center justify-center leading-tight p-2 md:p-4">
-                    <h1 className="text-lg">
-                      <a className="no-underline hover:underline text-black" href="#">
-                        {dut.model}
-                      </a>
-                    </h1>
-                    <p className="text-grey-darker text-sm mt-2">
-                      IP: {dut.ip_mgnt}
-                    </p>
-                    {dut.console && (
-                      <p className="text-grey-darker text-sm mt-2">
-                        Console: {dut.console}
-                      </p>
-                    )}
-                  </header>
-                </article>
+                </h1>
+                <p className="text-grey-darker text-sm mt-2">
+                  IP: {dut.ip_mgnt}
+                </p>
+                <p className="text-grey-darker text-sm mt-2">
+                  ID: {dut.id}
+                </p>
+                {dut.console && (
+                  <p className="text-grey-darker text-sm mt-2">
+                    Console: {dut.console}
+                  </p>
+                )}
               </div>
             ))}
           </div>
         </div>
       </div>
+      <style jsx>{`
+      .circle-container {
+        width: 500px;  // Adjust based on desired size
+        height: 500px; // Adjust based on desired size
+        position: relative;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 900px;
+        margin-left: 500px;
+        margin-right: 500px;
+      }
+      .node-card {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100px;  // Adjust based on card size
+        height: 150px; // Adjust based on card size
+        margin-top: -75px;  // Half of height
+        margin-left: -50px; // Half of width
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+        .link-line {
+          height: 2px;
+          background-color: #000;
+          position: absolute;
+          transform-origin: center;
+        }
+      `}</style>
     </main>
   );
 }

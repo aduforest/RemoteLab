@@ -13,8 +13,10 @@ export default function ViewReservation() {
   const [dutLinks, setDutLinks] = useState({});
   const [showDropdown, setShowDropdown] = useState(null);
   const dropdownRef = useRef(null);
-  const [selectedNodes, setSelectedNodes] = useState([]);
-  const [showPopup, setShowPopup] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [showSlideOver, setShowSlideOver] = useState(false);
+  
+
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -78,19 +80,14 @@ export default function ViewReservation() {
     
   }, [id]);
   
-  const handleNodeClick = (d) => {
-    let updatedNodes;
-    if (selectedNodes.includes(d)) {
-      updatedNodes = selectedNodes.filter(node => node !== d);
-    } else {
-      updatedNodes = [...selectedNodes, d];
-    }
-    setSelectedNodes(updatedNodes);
-    if (updatedNodes.length === 2) {
-      setShowPopup(true);
-    }
-  };
-  
+
+
+  useEffect(() => {
+    const nodeGroups = d3.select("#dutMap").selectAll("g.node-group");
+    nodeGroups.select("rect")
+      .attr("stroke-width", d => selectedNode === d ? "3" : "0")
+      .attr("stroke", d => selectedNode === d ? "purple" : "none");
+  }, [selectedNode]);
 
 
   const getImageForDut = (model) => {
@@ -124,8 +121,8 @@ export default function ViewReservation() {
   useEffect(() => {
     if (duts.length > 0 && Object.keys(dutLinks).length > 0) {
       // Set up SVG canvas dimensions
-      const width = window.innerWidth * 0.8;
-      const height = window.innerHeight; 
+      const width = window.innerWidth;
+      const height = window.innerHeight * 0.8; 
       // Create an SVG element
       const svg = d3.select("#dutMap")
         .append("svg")
@@ -140,12 +137,19 @@ export default function ViewReservation() {
         .style("rx", "20")
         .style("ry", "20")
         .style("fill", "#FFFFFF");
+
+        svg.on("mousedown", (event) => {
+          if (!event.target.classList.contains("selectable-rect")) {
+            setSelectedNode(null);
+            setShowSlideOver(false);
+          }
+        });
         
 
       const radius = Math.min(width, height) * 0.3;
-      duts.forEach((d, i, nodes) => {
-        d.x = width / 2 + radius * Math.cos(2 * Math.PI * i / nodes.length);
-        d.y = height / 2 + radius * Math.sin(2 * Math.PI * i / nodes.length);
+      duts.forEach((d, i, nodeGroups) => {
+        d.x = width / 2 + radius * Math.cos(2 * Math.PI * i / nodeGroups.length);
+        d.y = height / 2 + radius * Math.sin(2 * Math.PI * i / nodeGroups.length);
       });
 
       const linkData = Object.values(dutLinks).flat().map(link => {
@@ -166,35 +170,46 @@ export default function ViewReservation() {
         .attr("y1", d => d.source.y)
         .attr("x2", d => d.target.x)
         .attr("y2", d => d.target.y);
-  
-      // Create nodes (DUTs)
-      const nodes = svg.append("g")
-        .selectAll("image")
-        .data(duts)
-        .enter().append("image")
-        .attr("xlink:href", d => getImageForDut(d.model))
-        .attr("width", 120)
-        .attr("height", 120)
-        .style("border", d => selectedNodes.includes(d) ? "2px solid blue" : "none")
-        .style("fill", d => selectedNodes.includes(d) ? "purple" : "none")
-        .on("click", handleNodeClick)
-        .attr("x", d => Math.max(60, Math.min(width - 60, d.x)) - 60)
-        .attr("y", d => Math.max(60, Math.min(height - 60, d.y)) - 60)
-        .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended));
 
-      
+
+      // Create node groups
+      const nodeGroups = svg.append("g")
+      .selectAll("g.node-group")
+      .data(duts)
+      .enter().append("g")
+      .attr("class", "node-group")
+      .attr("transform", d => `translate(${Math.max(60, Math.min(width - 60, d.x)) - 60}, ${Math.max(60, Math.min(height - 60, d.y)) - 60})`)
+      .on("click", (event, d) => {
+        setSelectedNode(d);
+        setShowSlideOver(true);
+      })
+      .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+      nodeGroups.append("rect")
+      .attr("width", 120)
+      .attr("height", 120)
+      .attr("stroke-width", d => selectedNode === d ? "3" : "0")
+      .attr("stroke", d => selectedNode === d ? "purple" : "none")
+      .attr("stroke-dasharray", "5,5")
+      .attr("fill", "transparent")
+      .attr("class", "selectable-rect");
+
+      nodeGroups.append("image")
+      .attr("xlink:href", d => getImageForDut(d.model))
+      .attr("width", 120)
+      .attr("height", 120);
   
       function dragstarted(event, d) {
-        d3.select(this).raise().classed("active", true);
+        d3.select(this).raise();
       }
       
       function dragged(event, d) {
         d.x = event.x;
         d.y = event.y;
-        d3.select(this).attr("x", d.x - 60).attr("y", d.y - 60);
+        d3.select(this).attr("transform", `translate(${d.x - 60}, ${d.y - 60})`);
         // Update the links connected to this node
         links.each(function(l) {
           if (l.source === d) {
@@ -205,8 +220,8 @@ export default function ViewReservation() {
         });
       }
       
+      
       function dragended(event, d) {
-        d3.select(this).classed("active", false);
       }
   
       // Cleanup on component unmount
@@ -224,7 +239,6 @@ export default function ViewReservation() {
   return (
     <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
       <Header />
-      {/* Purple tint */}
       <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
         <div
           className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
@@ -234,33 +248,41 @@ export default function ViewReservation() {
           }}
         />
       </div>
-      {/* End of Purple tint */}
       <div className="mx-auto max-w-6xl py-10 sm:py-14 lg:py-18 z-10 relative">
-      <div className="text-center mb-2">
-        {/* Tab styled div for reservation name */}
-        <div className="bg-white shadow-md rounded-md px-6 py-2 inline-block">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {reservation.name}
-          </h1>
+        <div className="text-center mb-2">
+          <div className="bg-white shadow-md rounded-md px-6 py-2 inline-block">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              {reservation.name}
+            </h1>
+          </div>
+        </div>
+        <div className="flex min-h-[60vh] flex-1 flex-col justify-center items-center">
+          <div className="flex justify-between w-full mb-4">
+          </div>
+          <div id="dutMap"></div>
         </div>
       </div>
-      <div className="flex min-h-[60vh] flex-1 flex-col justify-center items-center">
-      <div className="flex justify-between w-full mb-4">
-      <button className="btn btn-primary">
-        Connect
-      </button>
-        <button className="btn btn-secondary">Add Equipment</button>
-      </div>
-      <div id="dutMap"></div>
-      {showPopup && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded shadow-lg">
-          <h2>Ports</h2>
-          <p>{selectedNodes[0]?.id}</p>
-          <p>{selectedNodes[1]?.id}</p>
+      {showSlideOver && (
+      <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+        <div className="overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="pointer-events-none fixed inset-y-0 right-0 top-40 bottom-40 flex max-w-full pl-10">
+              <div className="pointer-events-auto relative w-screen max-w-md">
+                <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+                  <div className="px-4 sm:px-6">
+                    <h2 className="text-base font-semibold leading-6 text-gray-900" id="slide-over-title">Panel title</h2>
+                  </div>
+                  <div className="relative mt-6 flex-1 px-4 sm:px-6">
+                  <p>Selected Node ID: {selectedNode.id}</p>
+                    {/* Your content */}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
       )}
-    </div>
-    </div>
-  </main>
-);
+    </main>
+  );
 }

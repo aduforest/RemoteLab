@@ -1,3 +1,5 @@
+import { Link, } from "react-router-dom";
+
 const Hero = () => {
 
 
@@ -28,12 +30,12 @@ const Hero = () => {
                and establish connections to simulate real-world networking scenarios.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
-              <a
-                href="reservation"
+              <Link
+                to="reservation"
                 className="rounded-md bg-purple-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600"
               >
                 Get started
-              </a>
+              </Link>
               <a
                 href="#"
                 className="text-sm font-semibold leading-6 text-gray-900"

@@ -360,17 +360,19 @@ def connect(request):
             if 'portA' in item and 'portB' in item:
                 linkA = get_object_or_404(Link, id=item['portA'])
                 linkB = get_object_or_404(Link, id=item['portB'])
+                linkA.target,linkB.target = linkB.source, linkA.source
 
-                if linkA.dut.reserv == None or linkB.dut.reserv == None:
+                if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
                     continue
 
-                if linkA.dut.reserv.creator != request.user or linkB.dut.reserv.creator != request.user:
+                if linkA.source.reserv.creator != request.user or linkB.source.reserv.creator != request.user:
                     back.append({"Fail" : "One of the DUTs is not yours."})
                     continue
 
                 global BVLAN
                 global SERVICE
+                # max_service = Link.objects.aggregate(max('service'))['service__max'] or 4000
 
                 if BVLAN >= 4002:
                     BVLAN = 4000
@@ -378,16 +380,18 @@ def connect(request):
                     BVLAN += 1
 
                 if SERVICE >= 5000:
-                    SERVICE = 4000
+                    SERVICE = 4001
                 else:
-                    SERVICE += 1
+                    SERVICE+=1
+
                 
                 if linkA.setService(SERVICE, BVLAN) and linkB.setService(SERVICE, BVLAN):
-                    back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.dut, linkA.dut_port, linkB.dut, linkB.dut_port)})
+                    back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
                 else:
                     back.append({"Fail" : "Tunnel not created"})
             else:
                 back.append({"Fail" : "Wrong formating of the port"})
+
 
 
         return Response({"duts": back}, status=status.HTTP_200_OK)
@@ -422,21 +426,23 @@ def disconnect(request):
             if 'portA' in item and 'portB' in item:
                 linkA = get_object_or_404(Link, id=item['portA'])
                 linkB = get_object_or_404(Link, id=item['portB'])
+                linkA.target = None
+                linkB.target = None
 
-                if linkA.dut.reserv == None or linkB.dut.reserv == None:
+                if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
                     continue
 
-                if linkA.dut.reserv.creator != request.user or linkB.dut.reserv.creator != request.user:
+                if linkA.source.reserv.creator != request.user or linkB.source.reserv.creator != request.user:
                     back.append({"Fail" : "One of the DUTs is not yours."})
                     continue
 
 
-                if linkA.dut == linkB.dut:
+                if linkA.source == linkB.source:
                     if linkA.deleteService() or linkB.deleteService():
-                        back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.dut, linkA.dut_port, linkB.dut, linkB.dut_port)})
+                        back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
                 elif linkA.deleteService() and linkB.deleteService():
-                    back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.dut, linkA.dut_port, linkB.dut, linkB.dut_port)})
+                    back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
                 else:
                     back.append({"Fail" : "Tunnel not removed"})
             else:
@@ -452,9 +458,9 @@ def disconnect(request):
 @permission_classes([IsAuthenticated])
 def list_link_by_dut(request):
     if 'dut' in request.GET:
-        dut = get_object_or_404(Dut, id=request.GET['dut'])
-        available_links = Link.objects.filter(dut=dut, service=None)
-        connected_links = Link.objects.filter(dut=dut).exclude(service=None)
+        source = get_object_or_404(Dut, id=request.GET['dut'])
+        available_links = Link.objects.filter(source=source, service=None)
+        connected_links = Link.objects.filter(source=source).exclude(service=None)
         available_serializer = LinkSerializer(instance=available_links, many=True)
         connected_serializer = LinkSerializer(instance=connected_links, many=True)
         return Response({"available": available_serializer.data, "connected": connected_serializer.data}, status=status.HTTP_200_OK)

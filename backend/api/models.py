@@ -165,12 +165,15 @@ class Dut(models.Model):
 
 
 class Link(models.Model):
+
     id = models.AutoField(primary_key=True)
     core_ip = models.CharField(max_length=15)
     core_port = models.CharField(max_length=10)
-    dut = models.ForeignKey(Dut, models.CASCADE, db_column='dut')
+    source = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='source', related_name='source_links')
+    target = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='target', related_name='target_links')
     dut_port = models.CharField(max_length=10)
     service = models.IntegerField(blank=True, null=True)
+
 
     def create_tunnel(self, bvlan, service_nbr):
         bvlan = str(bvlan)
@@ -221,7 +224,6 @@ class Link(models.Model):
         return False
     
     def deleteService(self):
-        print(self.service)
         if self.delete_tunnel(self.service):
             self.service = None
             self.save()

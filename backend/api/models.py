@@ -167,11 +167,12 @@ class Dut(models.Model):
 class Link(models.Model):
 
     id = models.AutoField(primary_key=True)
+    targetID = models.IntegerField()
     core_ip = models.CharField(max_length=15)
-    core_port = models.CharField(max_length=10)
+    source_port = models.CharField(max_length=10)
+    target_port = models.CharField(max_length=10)
     source = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='source', related_name='source_links')
     target = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='target', related_name='target_links')
-    dut_port = models.CharField(max_length=10)
     service = models.IntegerField(blank=True, null=True)
 
 
@@ -189,8 +190,8 @@ class Link(models.Model):
             cli(self.core_ip,header, "service spb {0} isid {0} bvlan {1}".format(service_nbr, bvlan))
             cli(self.core_ip,header, "service {0} pseudo-wire enable".format(service_nbr))
             cli(self.core_ip,header, "service l2profile 'spbbackbone' 802.1x tunnel 802.1ab peer".format(service_nbr))
-            cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.core_port))
-            cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.core_port))
+            cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
+            cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
 
             return True
         except Exception as e:
@@ -207,7 +208,7 @@ class Link(models.Model):
             return False
         print("delete_tunnel")
         try :
-            cli(self.core_ip,header, "no service {0} sap port {1}:all".format(service_nbr, self.core_port))
+            cli(self.core_ip,header, "no service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "service spb {0} admin-state disable".format(service_nbr))
             cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
 

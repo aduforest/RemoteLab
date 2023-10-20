@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.contrib.auth.models import User
+from django.db.models import Max
 
 from django.shortcuts import get_object_or_404, get_list_or_404
 
@@ -333,6 +334,14 @@ def list_dut_state(request):
 
     return Response({"availables": available_serializer.data, "reserved": reserved_serializer.data}, status=status.HTTP_200_OK)
 
+try:
+    max_service = Link.objects.all().aggregate(Max('service'))['service__max']
+    if max_service:
+        SERVICE = max_service
+    else:
+        SERVICE = 4001
+except:
+    SERVICE = 4001
 
 @api_view(['POST'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
@@ -361,6 +370,8 @@ def connect(request):
                 linkA = get_object_or_404(Link, id=item['portA'])
                 linkB = get_object_or_404(Link, id=item['portB'])
                 linkA.target,linkB.target = linkB.source, linkA.source
+                linkA.targetID, linkB.targetID = linkB.id, linkA.id
+                linkA.target_port, linkB.target_port = linkB.source_port, linkA.source_port
 
                 if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
@@ -372,7 +383,6 @@ def connect(request):
 
                 global BVLAN
                 global SERVICE
-                # max_service = Link.objects.aggregate(max('service'))['service__max'] or 4000
 
                 if BVLAN >= 4002:
                     BVLAN = 4000
@@ -386,7 +396,7 @@ def connect(request):
 
                 
                 if linkA.setService(SERVICE, BVLAN) and linkB.setService(SERVICE, BVLAN):
-                    back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
+                    back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 else:
                     back.append({"Fail" : "Tunnel not created"})
             else:
@@ -428,6 +438,10 @@ def disconnect(request):
                 linkB = get_object_or_404(Link, id=item['portB'])
                 linkA.target = None
                 linkB.target = None
+                linkA.targetID = None
+                linkB.targetID = None
+                linkA.target_port = None
+                linkB.target_port = None
 
                 if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
@@ -440,9 +454,9 @@ def disconnect(request):
 
                 if linkA.source == linkB.source:
                     if linkA.deleteService() or linkB.deleteService():
-                        back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
+                        back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 elif linkA.deleteService() and linkB.deleteService():
-                    back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.dut_port, linkB.source, linkB.dut_port)})
+                    back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 else:
                     back.append({"Fail" : "Tunnel not removed"})
             else:
@@ -469,3 +483,14 @@ def list_link_by_dut(request):
 @api_view(['GET'])
 def stats(request):
     return Response({'users' : len(User.objects.all()), 'duts' : len(Dut.objects.all()), 'reservations' : len(Reservation.objects.all())}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def list_available_dut(request):
+    duts = Dut.objects.all()
+    available = Dut.objects.filter(reserv=None)
+
+    available_serializer = DutSerializer(instance=available, many=True)
+
+    return Response(available_serializer.data, status=status.HTTP_200_OK)

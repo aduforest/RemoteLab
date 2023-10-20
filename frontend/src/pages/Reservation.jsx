@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from "../components";
 import Axios from "../Axios";
 import { useAuthHeader } from 'react-auth-kit';
@@ -57,6 +57,21 @@ export default function Reservation() {
     });
   };
 
+  const dropdownRef = useRef(null); // <-- Create a ref for the dropdown
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
     <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
       <Header />
@@ -114,16 +129,16 @@ export default function Reservation() {
                     <div className="bg-gray-600 h-1 w-1 rounded-full"></div>
                   </button>
                   {showDropdown === index && (
-                    <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div ref={dropdownRef} className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"> {/* <-- Add ref to the dropdown */}
                       <div className="py-1">
                         <button 
                         onClick={() => redirect(`/updatereservation/${reservation.id}`)}
-                        className="text-gray-700 block px-4 py-2 text-sm" role="menuitem">
+                        className="text-gray-700 block w-full text-left px-4 py-2 text-sm rounded hover:bg-gray-200" role="menuitem"> {/* <-- Adjusted styling */}
                           Edit
                         </button>
                         <button 
                         onClick={() => deleteReservation(reservation.id)}
-                        className="text-gray-700 block px-4 py-2 text-sm" role="menuitem">
+                        className="text-gray-700 block w-full text-left px-4 py-2 text-sm rounded hover:bg-gray-200" role="menuitem"> {/* <-- Adjusted styling */}
                           Delete
                         </button>
                       </div>

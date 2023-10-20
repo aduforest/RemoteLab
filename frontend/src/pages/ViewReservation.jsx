@@ -4,6 +4,7 @@ import Axios from "../Axios";
 import { useAuthHeader } from 'react-auth-kit';
 import { useParams } from 'react-router-dom';
 import * as d3 from 'd3';
+import { useNavigate } from 'react-router-dom';
 
 export default function ViewReservation() {
   const [reservation, setReservation] = useState(null);
@@ -11,12 +12,48 @@ export default function ViewReservation() {
   const authHeader = useAuthHeader();
   const { id } = useParams();
   const [dutLinks, setDutLinks] = useState({});
+  const [availablePorts, setAvailablePorts] = useState({});
   const [showDropdown, setShowDropdown] = useState(null);
   const dropdownRef = useRef(null);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [showSlideOver, setShowSlideOver] = useState(false);
-  
+  const [showNodeSlideOver, setShowNodeSlideOver] = useState(false);
+  const [selectedDropdownLink, setSelectedDropdownLink] = useState(null);
+  const [connectMode, setConnectMode] = useState(false);
+  const connectModeRef = useRef(connectMode);
+  const redirect = useNavigate();
+  const [selectedConnectA, setSelectedNodeA] = useState(null);
+  const [selectedConnectB, setSelectedNodeB] = useState(null);
+  const [selectedPortA, setSelectedPortA] = useState(null);
+  const [selectedPortB, setSelectedPortB] = useState(null);
+  const [selectedLink, setSelectedLink] = useState(null);
+  const [similarLinks, setSimilarLinks] = useState([]);
+  const [canvasWidth, setCanvasWidth] = useState(window.innerWidth * 0.69);
+  const [canvasHeight, setCanvasHeight] = useState(window.innerHeight * 0.8);
 
+  useEffect(() => {
+    connectModeRef.current = connectMode;
+  }, [connectMode]);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setCanvasWidth(window.innerWidth * 0.69);
+    };
+  
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setCanvasHeight(window.innerHeight * 0.8);
+    };
+  
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  
+  const panelWidth = (window.innerWidth - canvasWidth)/2;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,10 +104,13 @@ export default function ViewReservation() {
         ));
   
         const links = {};
+        const ports = {};
         linkResponses.forEach((response, index) => {
           links[fetchedDuts[index].id] = response.data.connected;
+          ports[fetchedDuts[index].id] = response.data.available;
         });
         setDutLinks(links);
+        setAvailablePorts(ports);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -85,10 +125,137 @@ export default function ViewReservation() {
   useEffect(() => {
     const nodeGroups = d3.select("#dutMap").selectAll("g.node-group");
     nodeGroups.select("rect")
-      .attr("stroke-width", d => selectedNode === d ? "3" : "0")
-      .attr("stroke", d => selectedNode === d ? "purple" : "none");
-  }, [selectedNode]);
+      .attr("stroke-width", d => {
+        if (connectMode) {
+          return (selectedConnectA === d || selectedConnectB === d) ? "3" : "1";
+        } else {
+          return selectedNode === d ? "3" : "0";
+        }
+      })
+      .attr("stroke", d => {
+        if (connectMode) {
+          return (selectedConnectA === d || selectedConnectB === d) ? "blue" : "grey";
+        } else {
+          return selectedNode === d ? "purple" : "none";
+        }
+      })
+      .attr("stroke-dasharray", d => {
+        if (connectMode && (selectedConnectA === d || selectedConnectB === d)) {
+          return "none";
+        } else {
+          return "5,5";
+        }
+      });
+  }, [selectedNode, connectMode, selectedConnectA, selectedConnectB]); 
+  
+  const handleConnect = async () => {
+    if (selectedPortA && selectedPortB) {
+      try {
+        const response = await Axios.post("connect/", {
+          links: [
+            {
+              portA: selectedPortA.id,
+              portB: selectedPortB.id
+            }
+          ]
+        }, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+  
+        if (response.status === 200) {
+          console.log(response.data);
+          setConnectMode(false);
+          setShowNodeSlideOver(false);
+          fetchData();
+        } else {
+          console.error("Failed to connect:", response.data);
+        }
+      } catch (error) {
+        console.error("Error connecting:", error);
+      }
+    } else {
+      console.error("Ports not selected");
+    }
+  }; 
 
+  const handleDisconnect = async () => {
+    if (selectedLink) {
+      try {
+        const response = await Axios.post("disconnect/", {
+          links: [
+            {
+              portA: selectedLink.ID,
+              portB: selectedLink.targetID
+            }
+          ]
+        }, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+  
+        if (response.status === 200) {
+          console.log(response.data);
+          setSelectedLink(null);
+          fetchData();
+        } else {
+          console.error("Failed to disconnect:", response.data);
+        }
+      } catch (error) {
+        console.error("Error disconnecting:", error);
+      }
+    } else {
+      console.error("Link not selected");
+    }
+  };
+  
+
+  const handleRelease = async () => {
+    if (selectedNode) {
+      try {
+        const response = await Axios.post("release/", {
+          duts: [
+            {
+              dut: selectedNode.id
+            }
+          ]
+        }, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+  
+        if (response.status === 200) {
+          console.log(response.data);
+        } else {
+          console.error("Failed to connect:", response.data);
+        }
+      } catch (error) {
+        console.error("Error connecting:", error);
+      }
+    } else {
+      console.error("Ports not selected");
+    }
+  };
+
+  useEffect(() => {
+    const svg = d3.select("#dutMap").select("svg");
+  
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 5]) // Define the minimum and maximum zoom scale
+      .on("zoom", (event) => {
+        svg.attr("transform", event.transform); // Apply the zoom and pan transformation
+      });
+  
+    svg.call(zoom);
+  
+    return () => {
+      svg.on(".zoom", null); // Cleanup the zoom event listener
+    };
+  }, []);
+  
 
   const getImageForDut = (model) => {
     if (model.startsWith('OS6865')) {
@@ -121,7 +288,7 @@ export default function ViewReservation() {
   useEffect(() => {
     if (duts.length > 0 && Object.keys(dutLinks).length > 0) {
       // Set up SVG canvas dimensions
-      const width = window.innerWidth;
+      const width = window.innerWidth * 0.69;
       const height = window.innerHeight * 0.8; 
       // Create an SVG element
       const svg = d3.select("#dutMap")
@@ -140,10 +307,18 @@ export default function ViewReservation() {
 
         svg.on("mousedown", (event) => {
           if (!event.target.classList.contains("selectable-rect")) {
-            setSelectedNode(null);
-            setShowSlideOver(false);
+            if (connectMode) {
+              setSelectedNodeA(null);
+              setSelectedNodeB(null);
+            } else {
+              setSelectedNode(null);
+            }
+            setShowNodeSlideOver(false);
+            setSelectedLink(false);
+            setConnectMode(false);
           }
         });
+        
         
 
       const radius = Math.min(width, height) * 0.3;
@@ -155,9 +330,74 @@ export default function ViewReservation() {
       const linkData = Object.values(dutLinks).flat().map(link => {
         return {
           source: duts.find(d => d.id === link.source),
-          target: duts.find(d => d.id === link.target)
+          target: duts.find(d => d.id === link.target),
+          ID: link.id,
+          targetID: link.targetID,
+          source_port: link.source_port,
+          target_port: link.target_port
         };
       });
+
+      const getSimilarLinks = (linkData) => {
+        const seen = new Map();
+        const similar = {};
+    
+        linkData.forEach(link => {
+            const identifier = `${link.source.id}-${link.target.id}`;
+            const identifier2 = `${link.target.id}-${link.source.id}`;
+    
+            if (seen.has(identifier)) {
+                if (!similar[identifier]) {
+                    similar[identifier] = [seen.get(identifier)];
+                }
+                if (!similar[identifier].includes(link)) {
+                    similar[identifier].push(link);
+                }
+            } else if (seen.has(identifier2)) {
+                if (!similar[identifier2]) {
+                    similar[identifier2] = [seen.get(identifier2)];
+                }
+                if (!similar[identifier2].includes(link)) {
+                    similar[identifier2].push(link);
+                }
+            } else {
+                seen.set(identifier, link);
+            }
+        });
+    
+        return similar;
+    };
+    
+    setSimilarLinks(getSimilarLinks(linkData));    
+    
+    
+      const InfoIcon = () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        </svg>
+      );      
+
+      const clickableLinks = svg.append("g")
+      .selectAll("line.clickable-link")
+      .data(linkData)
+      .enter().append("line")
+      .attr("class", "clickable-link")
+      .attr("stroke", "transparent")
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y)
+      .attr("stroke-width", 20)
+      .on("mouseover", function() {
+        d3.select(this).attr("stroke", "#d699ff");
+      })
+      .on("mouseout", function() {
+        d3.select(this).attr("stroke", "transparent");
+      })
+      .on("click", (event, d) => {
+        setSelectedLink(d);
+      });
+
 
       // Create links
       const links = svg.append("g")
@@ -169,9 +409,10 @@ export default function ViewReservation() {
         .attr("x1", d => d.source.x)
         .attr("y1", d => d.source.y)
         .attr("x2", d => d.target.x)
-        .attr("y2", d => d.target.y);
-
-
+        .attr("y2", d => d.target.y)
+        .attr("stroke", d => selectedLink && (d.source === selectedLink.source && d.target === selectedLink.target) ? "red" : "black")
+        .attr("stroke-width", d => selectedLink && (d.source === selectedLink.source && d.target === selectedLink.target) ? 5 : 1)
+          
       // Create node groups
       const nodeGroups = svg.append("g")
       .selectAll("g.node-group")
@@ -180,9 +421,23 @@ export default function ViewReservation() {
       .attr("class", "node-group")
       .attr("transform", d => `translate(${Math.max(60, Math.min(width - 60, d.x)) - 60}, ${Math.max(60, Math.min(height - 60, d.y)) - 60})`)
       .on("click", (event, d) => {
-        setSelectedNode(d);
-        setShowSlideOver(true);
-      })
+        if (connectModeRef.current) {
+          setSelectedNodeA(prevSelectedConnectA => {
+            if (!prevSelectedConnectA) {
+              return d;
+            } else if (!selectedConnectB && prevSelectedConnectA !== d) {
+              setSelectedNodeB(d);
+              return prevSelectedConnectA;
+            } else {
+              setSelectedNodeB(null);
+              return d;
+            }
+          });
+        } else {
+          setSelectedNode(d);
+          setShowNodeSlideOver(true);
+        }
+      })          
       .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
@@ -218,8 +473,15 @@ export default function ViewReservation() {
             d3.select(this).attr("x2", d.x).attr("y2", d.y);
           }
         });
+
+        clickableLinks.each(function(l) {
+          if (l.source === d) {
+              d3.select(this).attr("x1", d.x).attr("y1", d.y);
+          } else if (l.target === d) {
+              d3.select(this).attr("x2", d.x).attr("y2", d.y);
+          }
+      });
       }
-      
       
       function dragended(event, d) {
       }
@@ -257,24 +519,61 @@ export default function ViewReservation() {
           </div>
         </div>
         <div className="flex min-h-[60vh] flex-1 flex-col justify-center items-center">
-          <div className="flex justify-between w-full mb-4">
-          </div>
-          <div id="dutMap"></div>
+        <div className="flex justify-between w-full mb-4">
+          <div></div>
+          <div className="flex space-x-4">
+            <button 
+                className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
+                onClick={() => redirect('/equipment')}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Equipment
+            </button>
+            <button 
+                className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
+                onClick={() => {
+                  setConnectMode(true);
+                  setShowNodeSlideOver(false);
+                  setSelectedLink(false);
+                }}
+                
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+                Connect Devices
+            </button>
         </div>
+        </div>
+
+        <div id="dutMap"></div>
       </div>
-      {showSlideOver && (
+      </div>
+      {showNodeSlideOver && (
       <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
         <div className="overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="pointer-events-none fixed inset-y-0 right-0 top-40 bottom-40 flex max-w-full pl-10">
-              <div className="pointer-events-auto relative w-screen max-w-md">
+        <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
+            <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
+            <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
                 <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+                <div className="px-4 sm:px-6">
+                <h3 className="text-xl font-bold mb-4">Node Information</h3>
+                <div className="relative mt-6 flex-1 px-4 sm:px-6"></div>
+              </div>
                   <div className="px-4 sm:px-6">
-                    <h2 className="text-base font-semibold leading-6 text-gray-900" id="slide-over-title">Panel title</h2>
-                  </div>
-                  <div className="relative mt-6 flex-1 px-4 sm:px-6">
-                  <p>Selected Node ID: {selectedNode.id}</p>
-                    {/* Your content */}
+                    <h2 className="text-base font-semibold leading-6 text-gray-900" id="slide-over-title">{selectedNode.id}</h2>
+                    <p>{selectedNode.model}</p>
+                    <p>{selectedNode.console}</p>
+                    <p>{selectedNode.ip_mgmt}</p>
+                    <br />
+                    <button 
+                        className="mt-4 bg-white text-purple-600 border-2 border-purple-600 py-2 px-4  rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
+                        onClick={handleRelease}
+                    >
+                        Release device
+                    </button>
                   </div>
                 </div>
               </div>
@@ -282,7 +581,159 @@ export default function ViewReservation() {
           </div>
         </div>
       </div>
-      )}
-    </main>
-  );
+    )}
+    {connectMode && (
+      <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+        <div className="overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
+            <div className="pointer-events-none fixed inset-y-0 right-0 top-20 bottom-20 flex max-w-full">
+              <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
+                <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+                  <div className="px-4 sm:px-6">
+                    <h3 className="text-xl font-bold mb-4">Connect Mode</h3>
+                  </div>
+                  <div className="relative mt-6 flex-1 px-4 sm:px-6 overflow-y-auto" style={{ maxHeight: 'calc(100% - 100px)' }}>
+                    {!selectedConnectA && !selectedConnectB && (
+                      <p>Select two nodes from the map.</p>
+                    )}
+                    {selectedConnectA && (
+                      <>
+                        <div className="mb-4">
+                          <strong>DUT Model A:</strong> {selectedConnectA.model}
+                        </div>
+                        <div className="mt-4">
+                          Select port for Model A.
+                        </div>
+                        {availablePorts[selectedConnectA?.id]?.map(port => (
+                          <div key={port} className="flex items-center break-words">
+                            <div 
+                              className={`mr-2 w-4 h-4 rounded-full cursor-pointer hover:bg-gray-400 ${port === selectedPortA ? 'bg-blue-500' : 'bg-gray-300'}`} 
+                              onClick={() => setSelectedPortA(port)}
+                            ></div>
+                            {port.source_port}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    {selectedConnectB && (
+                      <>
+                        <div className="mb-4">
+                          <strong>DUT Model B:</strong> {selectedConnectB.model}
+                        </div>
+                        <div className="mt-4">
+                          Select port for Model B.
+                        </div>
+                        {availablePorts[selectedConnectB?.id]?.map(port => (
+                          <div key={port} className="flex items-center">
+                            <div 
+                              className={`mr-2 w-4 h-4 rounded-full cursor-pointer hover:bg-gray-400 ${port === selectedPortB ? 'bg-blue-500' : 'bg-gray-300'}`} 
+                              onClick={() => setSelectedPortB(port)}
+                            ></div>
+                            {port.source_port}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    {selectedConnectA && !selectedConnectB && (
+                      <div className="mt-4">
+                        Select another device on the map.
+                      </div>
+                    )}
+                    {selectedConnectA && selectedConnectB && (
+                      <button 
+                        className="mt-4 bg-green-200 text-white py-2 px-4 shadow-md hover:bg-green-300 active:bg-green-400" 
+                        onClick={handleConnect}
+                      >
+                        Connect
+                      </button>
+                    )}
+                    <button 
+                      className="mt-4 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 
+                      onClick={() => {
+                        setConnectMode(false);
+                        setSelectedNodeA(null);
+                        setSelectedNodeB(null);
+                        setSelectedNode(null);
+                      }}
+                    >
+                      Exit Connect Mode
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  {selectedLink && (
+  <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+  <div className="overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
+      <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
+        <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
+          <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+              <div className="px-4 sm:px-6">
+                <h3 className="text-xl font-bold mb-4">Link Information</h3>
+              </div>
+              <div className="relative mt-6 flex-1 px-4 sm:px-6">
+
+              {(() => {
+                const identifier = `${selectedLink.source.id}-${selectedLink.target.id}`;
+                const identifier2 = `${selectedLink.target.id}-${selectedLink.source.id}`;
+                const links = similarLinks[identifier] || similarLinks[identifier2];
+                if (links && links.length > 1) {
+                  return (
+                    <select 
+                      value={selectedDropdownLink} 
+                      onChange={(e) => {
+                          const selectedID = e.target.value;
+                          console.log("Selected ID:", selectedID);
+                          console.log("Links:", links);
+
+                          const newSelectedLink = links.find(link => {
+                            console.log("Link ID:", link.ID);
+                            return link.ID === Number(selectedID);
+
+                        });                        
+                          setSelectedLink(newSelectedLink);
+                      }}
+                  >
+                      {links.map(link => (
+                          <option key={link.ID} value={link.ID}>
+                              Link ID: {link.ID}
+                          </option>
+                      ))}
+                  </select>
+                  );
+                }
+              })()}
+            
+              <strong>Source DUT:</strong> {selectedLink.source.model}
+              <p>Port: {selectedLink.source_port}</p>
+              <br />
+              <strong>Target DUT:</strong> {selectedLink.target.model}
+              <p>Port: {selectedLink.target_port}</p>
+                <button 
+                  className="mt-4 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 
+                  onClick={handleDisconnect}
+                >
+                  Disconnect
+                </button>
+                <button 
+                  className="mt-4 bg-gray-200 text-black py-2 px-4 shadow-md hover:bg-gray-300 active:bg-gray-400" 
+                  onClick={() => setSelectedLink(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+  </main>
+);
 }

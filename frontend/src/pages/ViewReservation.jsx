@@ -288,8 +288,8 @@ export default function ViewReservation() {
   useEffect(() => {
     if (duts.length > 0 && Object.keys(dutLinks).length > 0) {
       // Set up SVG canvas dimensions
-      const width = window.innerWidth * 0.69;
-      const height = window.innerHeight * 0.8; 
+      const width = window.innerWidth * 0.9;
+      const height = window.innerHeight * 0.9; 
       // Create an SVG element
       const svg = d3.select("#dutMap")
         .append("svg")
@@ -462,8 +462,8 @@ export default function ViewReservation() {
       }
       
       function dragged(event, d) {
-        d.x = event.x;
-        d.y = event.y;
+        d.x = Math.max(0, Math.min(width - 20, event.x));
+        d.y = Math.max(0, Math.min(height - 20, event.y));
         d3.select(this).attr("transform", `translate(${d.x - 60}, ${d.y - 60})`);
         // Update the links connected to this node
         links.each(function(l) {
@@ -497,6 +497,31 @@ export default function ViewReservation() {
   if (!reservation) {
     return <div>Loading...</div>;
   }
+  if (duts.length === 0) {
+    return (
+      <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
+        <Header />
+      <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
+        <div
+          className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
+          style={{
+            clipPath:
+              "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
+          }}
+        />
+      </div>
+        <div className="text-center my-40">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">This reservation has no devices</h2>
+          <button 
+            className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-8 rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200"
+            onClick={() => redirect('/equipment')}
+          >
+            Add Equipment
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
@@ -511,46 +536,38 @@ export default function ViewReservation() {
         />
       </div>
       <div className="mx-auto max-w-6xl py-10 sm:py-14 lg:py-18 z-10 relative">
-        <div className="text-center mb-2">
-          <div className="bg-white shadow-md rounded-md px-6 py-2 inline-block">
+      <div className="flex min-h-[60vh] flex-1 flex-col justify-center items-center">
+        <div className="w-full flex justify-center items-center mb-2">
+          <button 
+            className="bg-white text-purple-600 border-2 border-purple-600 p-2 rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 mr-4"
+            onClick={() => redirect('/equipment')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+          </button>
+          <div className="bg-white shadow-md rounded-md px-6 py-2">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               {reservation.name}
             </h1>
           </div>
-        </div>
-        <div className="flex min-h-[60vh] flex-1 flex-col justify-center items-center">
-        <div className="flex justify-between w-full mb-4">
-          <div></div>
-          <div className="flex space-x-4">
-            <button 
-                className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
-                onClick={() => redirect('/equipment')}
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Add Equipment
-            </button>
-            <button 
-                className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
-                onClick={() => {
-                  setConnectMode(true);
-                  setShowNodeSlideOver(false);
-                  setSelectedLink(false);
-                }}
-                
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                </svg>
-                Connect Devices
-            </button>
-        </div>
+          <button 
+            className="bg-white text-purple-600 border-2 border-purple-600 p-2 rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 ml-4"
+            onClick={() => {
+              setConnectMode(true);
+              setShowNodeSlideOver(false);
+              setSelectedLink(false);
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              </svg>
+          </button>
         </div>
 
         <div id="dutMap"></div>
       </div>
-      </div>
+    </div>
       {showNodeSlideOver && (
       <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
         <div className="overflow-hidden">
@@ -683,49 +700,64 @@ export default function ViewReservation() {
                 const identifier2 = `${selectedLink.target.id}-${selectedLink.source.id}`;
                 const links = similarLinks[identifier] || similarLinks[identifier2];
                 if (links && links.length > 1) {
-                  return (
-                    <select 
-                      value={selectedDropdownLink} 
-                      onChange={(e) => {
-                          const selectedID = e.target.value;
-                          console.log("Selected ID:", selectedID);
-                          console.log("Links:", links);
-
-                          const newSelectedLink = links.find(link => {
-                            console.log("Link ID:", link.ID);
-                            return link.ID === Number(selectedID);
-
-                        });                        
-                          setSelectedLink(newSelectedLink);
-                      }}
-                  >
-                      {links.map(link => (
-                          <option key={link.ID} value={link.ID}>
-                              Link ID: {link.ID}
-                          </option>
-                      ))}
-                  </select>
-                  );
+                    // Create a set to keep track of added links
+                    const addedLinksSet = new Set();
+                
+                    // Filter the links to exclude the reverse ones
+                    const filteredLinks = links.filter(link => {
+                        const linkKey = `${link.source_port}-${link.target_port}`;
+                        const reverseLinkKey = `${link.target_port}-${link.source_port}`;
+                
+                        if (!addedLinksSet.has(reverseLinkKey)) {
+                            addedLinksSet.add(linkKey);
+                            return true;
+                        }
+                        return false;
+                    });
+                
+                    return (
+                        <select 
+                            value={selectedDropdownLink}
+                            onChange={(e) => {
+                                const selectedID = e.target.value;
+                                const newSelectedLink = filteredLinks.find(link => link.ID === Number(selectedID));
+                                setSelectedLink(newSelectedLink);
+                            }}
+                        >
+                            {/* Default option */}
+                            <option value="" disabled selected>Select Link</option>
+                            
+                            {filteredLinks.map(link => (
+                                <option key={link.ID} value={link.ID}>
+                                    Link {link.source_port} - {link.target_port}
+                                </option>
+                            ))}
+                        </select>
+                    );
                 }
-              })()}
-            
+            })()}
+
+              <br />
+              <br />
               <strong>Source DUT:</strong> {selectedLink.source.model}
               <p>Port: {selectedLink.source_port}</p>
               <br />
               <strong>Target DUT:</strong> {selectedLink.target.model}
               <p>Port: {selectedLink.target_port}</p>
-                <button 
-                  className="mt-4 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 
-                  onClick={handleDisconnect}
-                >
-                  Disconnect
-                </button>
-                <button 
-                  className="mt-4 bg-gray-200 text-black py-2 px-4 shadow-md hover:bg-gray-300 active:bg-gray-400" 
-                  onClick={() => setSelectedLink(null)}
-                >
-                  Close
-                </button>
+              <div className="flex flex-col">
+                  <button 
+                    className="mb-2 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 
+                    onClick={handleDisconnect}
+                  >
+                    Disconnect
+                  </button>
+                  <button 
+                    className="bg-gray-200 text-black py-2 px-4 shadow-md hover:bg-gray-300 active:bg-gray-400" 
+                    onClick={() => setSelectedLink(null)}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>

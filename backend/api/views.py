@@ -203,7 +203,7 @@ def update_reservation(request, pk):
 @permission_classes([IsAuthenticated])
 def get_reservation(request, pk):
     reservation = get_object_or_404(Reservation, id=pk)
-    if reservation.name and reservation.end and reservation.purpose:
+    if reservation.name and reservation.end:
         return Response({"name" : reservation.name, "end" : reservation.end, "purpose" : reservation.purpose}, status=status.HTTP_200_OK)
     serializer = ReservationSerializer(instance=reservation)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

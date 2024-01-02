@@ -18,11 +18,11 @@ const App = () => {
           <Route path="/about" element={<Welcome/>} />
           <Route path="" element={<Welcome />} />
           <Route path="*" element={<Error />} />
-          <Route path="/equipment" element={<RequireAuth loginPath={'/equipment'}><Equipment/></RequireAuth>} />
-          <Route path="/createreservation" element={<RequireAuth loginPath={'/createreservation'}><CreateReservation/></RequireAuth>} />
-          <Route path="/updatereservation/:id" element={<RequireAuth loginPath={'/updatereservation'}><UpdateReservation/></RequireAuth>} />
-          <Route path="/viewreservation/:id" element={<RequireAuth loginPath={'/viewreservation'}><ViewReservation/></RequireAuth>} />
-          <Route path="/reservation" element={<RequireAuth loginPath={'/reservation'}><Reservation/></RequireAuth>} />
+          <Route path="/equipment" element={<RequireAuth loginPath={'/login'}><Equipment/></RequireAuth>} />
+          <Route path="/createreservation" element={<RequireAuth loginPath={'/login'}><CreateReservation/></RequireAuth>} />
+          <Route path="/updatereservation/:id" element={<RequireAuth loginPath={'/loginn'}><UpdateReservation/></RequireAuth>} />
+          <Route path="/viewreservation/:id" element={<RequireAuth loginPath={'/login'}><ViewReservation/></RequireAuth>} />
+          <Route path="/reservation" element={<RequireAuth loginPath={'/login'}><Reservation/></RequireAuth>} />
           <Route path="/equipment" element={<RequireAuth loginPath={'/login'}><Welcome/></RequireAuth>} />
           <Route path="/administration" element={<RequireAuth loginPath={'/login'}><Welcome/></RequireAuth>} />
         </Routes>

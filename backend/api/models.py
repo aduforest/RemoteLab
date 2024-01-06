@@ -91,6 +91,8 @@ class Dut(models.Model):
     model = models.CharField(max_length=30)
     console = models.CharField(max_length=30, blank=True, null=True)
     reserv = models.ForeignKey(Reservation, models.SET_NULL, blank=True, null=True)
+    positionX = models.FloatField(null=True, blank=True)
+    positionY = models.FloatField(null=True, blank=True)
 
     def changeBanner(self):
         user = "nobody" if self.reserv is None else self.reserv.creator
@@ -218,18 +220,18 @@ class Link(models.Model):
             return False
 
     def setService(self, service, bvlan):
-        if self.create_tunnel(bvlan, service):
+        # if self.create_tunnel(bvlan, service):
             self.service = service
             self.save()
             return True
-        return False
+        # return False
     
     def deleteService(self):
-        if self.delete_tunnel(self.service):
+        # if self.delete_tunnel(self.service):
             self.service = None
             self.save()
             return True
-        return False
+        # return False
 
     class Meta:
         managed = False

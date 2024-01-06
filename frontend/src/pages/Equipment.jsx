@@ -10,6 +10,9 @@ export default function Equipment() {
   const [showModal, setShowModal] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [reservations, setReservations] = useState([]);
+  const [filterModels, setFilterModels] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
+
 
   useEffect(() => {
     const fetchAvailableDUTs = async () => {
@@ -53,7 +56,6 @@ export default function Equipment() {
   }
 
   const handleReserve = async () => {
-    // Construct the reservations payload
     const payload = {
       reservations: selectedDuts.map(dutId => ({
         reservation: selectedReservation,
@@ -80,6 +82,42 @@ export default function Equipment() {
     }
     setShowModal(true);
   }
+  
+  const handleModelChange = (model) => {
+    setFilterModels(prev => {
+      const newFilter = new Set(prev);
+      if (newFilter.has(model)) {
+        newFilter.delete(model);
+      } else {
+        newFilter.add(model);
+      }
+      return newFilter;
+    });
+  };
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const knownModels = new Set([
+    'OS2260', 'OS2360', 'OS6360', 'OS6465', 'OS6465T', 'OS6560', 'OS6570M-12', 'OS6570M-U28', 'OS6860', 'OS6900', 'OS9900', 'OS9912'
+  ]);
+  
+  const filteredDuts = duts.filter(dut => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const isModelSelected = [...filterModels].some(selectedModel => 
+      dut.model.toLowerCase().includes(selectedModel.toLowerCase())
+    );
+    const isOtherSelected = filterModels.has('Other') && ![...knownModels].some(knownModel => 
+      dut.model.toLowerCase().includes(knownModel.toLowerCase())
+    );
+    const matchesModel = filterModels.size === 0 || isModelSelected || isOtherSelected;
+    const matchesSearch = lowerCaseSearchTerm === '' || 
+      dut.id.toString().toLowerCase().includes(lowerCaseSearchTerm) || 
+      dut.model.toLowerCase().includes(lowerCaseSearchTerm);
+    return matchesModel && matchesSearch;
+  });
+  
   
 
   const closeModal = () => {
@@ -133,11 +171,52 @@ export default function Equipment() {
         }}
       />
     </div>
+    {/* Search by DUT ID */}
+    <div className="p-4">
+      <input
+        type="text"
+        placeholder="Search by DUT Model or ID"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        className="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+      />
+    </div>
+    
+    {/* Model Filter */}
+    <div className="flex flex-col items-start justify-center p-4">
+      <button id="dropdownDefault" data-dropdown-toggle="dropdown"
+        class="text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
+        type="button">
+        Filter by category
+        <svg class="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </button>
+
+      {/* Iterate over models to create checkboxes */}
+      {['OS2260', 'OS2360', 'OS6360', 'OS6465', 'OS6465T', 'OS6560', 'OS6570M-12', 'OS6570M-U28', 'OS6860', 'OS6900', 'OS9900', 'OS9912', 'Other'].map(model => (
+        <div key={model} className="flex items-center">
+          <input 
+            id={model}
+            type="checkbox"
+            value={model}
+            checked={filterModels.has(model)}
+            onChange={() => handleModelChange(model)}
+            className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+          />
+          <label htmlFor={model} className="ml-2 text-sm font-medium text-gray-900">
+            {model}
+          </label>
+        </div>
+      ))}
+    </div>
+
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8 mt-20">
         <h2 className="sr-only">Available DUTs</h2>
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-          {duts.map(dut => (
+          {filteredDuts.map(dut => (
             <div key={dut.id} className="group" onClick={() => handleSelect(dut.id)}>
               <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-lg bg-gray-100 xl:aspect-h-8 xl:aspect-w-7">
                 <img src={getImageForDut(dut.model)} alt={`Model ${dut.model}`} className="h-full w-full object-cover object-center group-hover:opacity-75" />

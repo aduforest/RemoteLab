@@ -133,6 +133,7 @@ def welcome(request):
             "/list_dut/?reserv=<id>",
             "/list_link/?dut=<id>",
             "/test_token/",
+            "/update_dut_position/?dut=<id>",
         ]
     }
     return Response(api_urls)
@@ -297,14 +298,36 @@ def release(request):
         for item in reserved:
             if 'dut' in item:
                 dut = get_object_or_404(Dut, id=item['dut'])
+                dut.positionX = None
+                dut.positionY = None
                 if dut.reserv is None:
                     duts.append({"Fail" : "DUT {} already released.".format(dut.id)})
-                    continue
-                
+
+                if 'links' in request.data:
+                    links_data = request.data['links']
+                    for dut_id, links in links_data.items():
+                        for link in links:
+                            if dut_id == str(dut.id):
+                                linkA = get_object_or_404(Link, id=link['id'])
+                                linkA.targetID = None
+                                linkA.target_port = None
+                                linkA.service = None
+                                linkA.target = None
+                                linkA.save()
+                            elif str(link['target']) == str(dut.id):
+                                linkA = get_object_or_404(Link, id=link['id'])
+                                linkA.targetID = None
+                                linkA.target_port = None
+                                linkA.service = None
+                                linkA.target = None
+                                linkA.save()
+
                 dut.unlink()
                 duts.append(DutSerializer(instance=dut).data)
+        
 
         return Response({"duts": duts}, status=status.HTTP_200_OK)
+        
 
     return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -494,3 +517,28 @@ def list_available_dut(request):
     available_serializer = DutSerializer(instance=available, many=True)
 
     return Response(available_serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def update_dut_position(request):
+    """
+    Structure
+        {
+            "positionX": ,
+            "positionY":
+        }
+    """
+
+    if 'positionX' in request.data and 'positionY' in request.data:
+        positionX = request.data['positionX']
+        positionY = request.data['positionY']
+        dut = get_object_or_404(Dut, id=request.GET['dut'])
+        
+        dut.positionX = positionX
+        dut.positionY = positionY
+        dut.save()
+
+        return Response(DutSerializer(dut).data, status=status.HTTP_200_OK)
+
+    return Response({"detail": "Invalid request."}, status=status.HTTP_404_NOT_FOUND)

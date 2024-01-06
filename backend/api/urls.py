@@ -25,5 +25,6 @@ urlpatterns = [
     path('list_dut/', views.list_dut_by_reservation),
     path('list_link/', views.list_link_by_dut),
     path('test_token/', views.test_token),
+     path('update_dut_position/', views.update_dut_position),
     path('', views.welcome),
 ]

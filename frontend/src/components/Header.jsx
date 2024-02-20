@@ -14,8 +14,8 @@ export default function Header() {
   const navigation = [
     { name: "Reservations", href: "/reservation" },
     { name: "Equipment", href: "/equipment" },
-    { name: "Administration", href: "/administration" },
-    { name: "About", href: "/about" },
+    // { name: "Administration", href: "/administration" },
+    // { name: "About", href: "/about" },
   ];
 
   const logout = () => {

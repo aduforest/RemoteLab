@@ -298,36 +298,37 @@ def release(request):
         for item in reserved:
             if 'dut' in item:
                 dut = get_object_or_404(Dut, id=item['dut'])
+
+                # Handle DUT release
                 dut.positionX = None
                 dut.positionY = None
                 if dut.reserv is None:
-                    duts.append({"Fail" : "DUT {} already released.".format(dut.id)})
+                    duts.append({"Fail": f"DUT {dut.id} already released."})
 
+                # Disconnect associated links
                 if 'links' in request.data:
                     links_data = request.data['links']
-                    for dut_id, links in links_data.items():
-                        for link in links:
-                            if dut_id == str(dut.id):
-                                linkA = get_object_or_404(Link, id=link['id'])
-                                linkA.targetID = None
-                                linkA.target_port = None
-                                linkA.service = None
-                                linkA.target = None
-                                linkA.save()
-                            elif str(link['target']) == str(dut.id):
-                                linkA = get_object_or_404(Link, id=link['id'])
-                                linkA.targetID = None
-                                linkA.target_port = None
-                                linkA.service = None
-                                linkA.target = None
-                                linkA.save()
+                    for link_list in links_data.values():
+                        for link in link_list:
+                            link_obj = get_object_or_404(Link, id=link['id'])
+                            # Check if the link is associated with the current DUT
+                            if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
+                                link_obj.target = None
+                                link_obj.targetID = None
+                                link_obj.target_port = None
+                                link_obj.save()
+                                if link_obj.deleteService():
+                                    duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
+                                else:
+                                    duts.append({"Fail": f"Failed to disconnect link associated with DUT {dut.id}"})
 
+
+                        
                 dut.unlink()
+                dut.save()
                 duts.append(DutSerializer(instance=dut).data)
-        
 
         return Response({"duts": duts}, status=status.HTTP_200_OK)
-        
 
     return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 

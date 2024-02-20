@@ -220,18 +220,18 @@ class Link(models.Model):
             return False
 
     def setService(self, service, bvlan):
-        # if self.create_tunnel(bvlan, service):
+        if self.create_tunnel(bvlan, service):
             self.service = service
             self.save()
             return True
-        # return False
+        return False
     
     def deleteService(self):
-        # if self.delete_tunnel(self.service):
+        if self.delete_tunnel(self.service):
             self.service = None
             self.save()
             return True
-        # return False
+        return False
 
     class Meta:
         managed = False

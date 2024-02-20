@@ -168,7 +168,8 @@ export default function ViewReservation() {
         if (response.status === 200) {
           console.log(response.data);
           setConnectMode(false);
-          setShowNodeSlideOver(false);
+          setSelectedNodeA(null);
+          setSelectedNodeB(null);
           fetchData();
         } else {
           console.error("Failed to connect:", response.data);
@@ -233,7 +234,7 @@ export default function ViewReservation() {
   
         if (response.status === 200) {
           console.log(response.data);
-          // fetchData();
+          fetchData();
         } else {
           console.error("Failed to release:", response.data);
         }
@@ -293,10 +294,8 @@ export default function ViewReservation() {
 
   useEffect(() => {
     if (duts.length > 0 && Object.keys(dutLinks).length > 0) {
-      // Set up SVG canvas dimensions
       const width = window.innerWidth * 0.9;
       const height = window.innerHeight * 0.9; 
-      // Create an SVG element
       const svg = d3.select("#dutMap")
         .append("svg")
         .attr("width", width)
@@ -335,8 +334,8 @@ export default function ViewReservation() {
         
         duts.forEach(d => {
           if (d.positionX != null && d.positionY != null) {
-            d.x = d.positionX;
-            d.y = d.positionY;
+            d.x = (d.positionX / 100) * width;
+            d.y = (d.positionY / 100) * height;
           }
         });
 
@@ -492,10 +491,12 @@ export default function ViewReservation() {
       }
       
       function dragended(event, d) {
-        // Send update to backend
+        const relativeX = (d.x / width) * 100;
+        const relativeY = (d.y / height) * 100;
+      
         Axios.post(`update_dut_position/?dut=${d.id}`, {
-          positionX: d.x,
-          positionY: d.y
+          positionX: relativeX,
+          positionY: relativeY
         }, {
           headers: {
             'Authorization': authHeader()
@@ -519,6 +520,25 @@ export default function ViewReservation() {
   if (!reservation) {
     return <div>Loading...</div>;
   }
+
+  const reservationEndDate = new Date(reservation.end);
+  if (reservationEndDate < new Date()) {
+    return (
+      <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
+        <Header />
+        <div className="text-center my-40">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">This reservation has expired</h2>
+          <button 
+            className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-8 rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200"
+            onClick={() => redirect('/reservation')}
+          >
+            View Reservations
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (duts.length === 0) {
     return (
       <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
@@ -609,7 +629,10 @@ export default function ViewReservation() {
                     <br />
                     <button 
                         className="mt-4 bg-white text-purple-600 border-2 border-purple-600 py-2 px-4  rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
-                        onClick={handleRelease}
+                        onClick={() => {
+                          handleRelease();
+                          setShowNodeSlideOver(false);
+                        }}
                     >
                         Release device
                     </button>

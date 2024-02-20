@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Axios from '../Axios';
 import { useAuthHeader } from 'react-auth-kit';
 import { Header } from "../components";
+import { useNavigate } from 'react-router-dom';
+
 
 export default function Equipment() {
   const [duts, setDuts] = useState([]);
@@ -12,6 +14,9 @@ export default function Equipment() {
   const [reservations, setReservations] = useState([]);
   const [filterModels, setFilterModels] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const redirect = useNavigate();
+  const [showDropdown, setShowDropdown] = useState(false);
+
 
 
   useEffect(() => {
@@ -46,6 +51,11 @@ export default function Equipment() {
     fetchAvailableDUTs();
     fetchUserReservations();
   }, []);
+
+  const toggleDropdown = () => {
+    setShowDropdown(prevShow => !prevShow);
+  };
+  
 
   const handleSelect = (dutId) => {
     if (selectedDuts.includes(dutId)) {
@@ -156,7 +166,7 @@ export default function Equipment() {
     <main className="bg-purple px-6 pt-16 pb-24 lg:px-8 relative">
       <Header />
       <button 
-        className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center absolute top-20 right-6" 
+        className="bg-white text-purple-600 border-2 border-purple-600 py-2 px-6 min-w-[200px] rounded-md shadow-md hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center absolute top-20 right-6 z-50" 
         onClick={handleAddToReservation}
     >
         Add to a Reservation
@@ -171,49 +181,52 @@ export default function Equipment() {
         }}
       />
     </div>
-    {/* Search by DUT ID */}
-    <div className="p-4">
-      <input
-        type="text"
-        placeholder="Search by DUT Model or ID"
-        value={searchTerm}
-        onChange={handleSearchChange}
-        className="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-      />
-    </div>
-    
-    {/* Model Filter */}
-    <div className="flex flex-col items-start justify-center p-4">
-      <button id="dropdownDefault" data-dropdown-toggle="dropdown"
-        class="text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800"
-        type="button">
-        Filter by category
-        <svg class="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-        </svg>
-      </button>
+    <div className="mx-auto max-w-6xl py-10 sm:py-14 lg:py-18 z-10 relative">
+      {/* Search by DUT ID */}
+      <div className="p-4">
+        <input
+          type="text"
+          placeholder="Search by DUT Model or ID"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="w-full rounded border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+        />
+      </div>
+      
+      {/* Model Filter */}
+      <div className="flex flex-col items-start justify-center p-2">
+        <button id="dropdownDefault" data-dropdown-toggle="dropdown"
+          className="text-black bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2.5 text-center inline-flex items-center"
+          onClick={toggleDropdown}
+          type="button">
+          Filter by model
+          <svg className="w-4 h-4 ml-2" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
 
-      {/* Iterate over models to create checkboxes */}
-      {['OS2260', 'OS2360', 'OS6360', 'OS6465', 'OS6465T', 'OS6560', 'OS6570M-12', 'OS6570M-U28', 'OS6860', 'OS6900', 'OS9900', 'OS9912', 'Other'].map(model => (
-        <div key={model} className="flex items-center">
-          <input 
-            id={model}
-            type="checkbox"
-            value={model}
-            checked={filterModels.has(model)}
-            onChange={() => handleModelChange(model)}
-            className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
-          />
-          <label htmlFor={model} className="ml-2 text-sm font-medium text-gray-900">
-            {model}
-          </label>
-        </div>
-      ))}
+        {/* Iterate over models to create checkboxes */}
+        {['OS2260', 'OS2360', 'OS6360', 'OS6465', 'OS6465T', 'OS6560', 'OS6570M-12', 'OS6570M-U28', 'OS6860', 'OS6900', 'OS9900', 'OS9912', 'Other'].map(model => (
+          <div key={model} className="flex items-center">
+            <input 
+              id={model}
+              type="checkbox"
+              value={model}
+              checked={filterModels.has(model)}
+              onChange={() => handleModelChange(model)}
+              className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+            />
+            <label htmlFor={model} className="ml-2 text-sm font-medium text-gray-900">
+              {model}
+            </label>
+          </div>
+        ))}
+      </div>
     </div>
 
     <div className="bg-white">
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8 mt-20">
+      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
         <h2 className="sr-only">Available DUTs</h2>
         <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
           {filteredDuts.map(dut => (
@@ -263,7 +276,10 @@ export default function Equipment() {
             ))}
           </select>
           </label>
-          <button className="mt-4 bg-purple-500 text-white py-2 px-4 rounded" onClick={handleReserve}>Add</button>
+          <button className="mt-4 bg-purple-500 text-white py-2 px-4 rounded" onClick={async () => {
+            await handleReserve();
+            redirect(`/viewreservation/${selectedReservation}`);
+          }}>Add</button>
         </div>
       </div>
     )}

@@ -88,6 +88,9 @@ export default function ViewReservation() {
       const fetchedDuts = dutsResponse.data.duts.map(dut => {
         return {
           ...dut,
+          id: dut.id,
+          username: dut.username,
+          type: dut.type,
           x: dut.positionX,
           y: dut.positionY
         };
@@ -245,6 +248,38 @@ export default function ViewReservation() {
       console.error("Node not selected");
     }
   };
+
+  const handleResetSwitch = async () => {
+    if (selectedNode) {
+      try {
+        const payload = {
+          duts: [
+            {
+              dut: selectedNode.id
+            }
+          ],
+          links: dutLinks
+        };
+        
+        const response = await Axios.post("reset/", payload, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        });
+  
+        if (response.status === 200) {
+          console.log(response.data);
+          fetchData();
+        } else {
+          console.error("Failed to reset:", response.data);
+        }
+      } catch (error) {
+        console.error("Error releasing:", error);
+      }
+    } else {
+      console.error("Node not selected");
+    }
+  };
   
 
   useEffect(() => {
@@ -287,9 +322,11 @@ export default function ViewReservation() {
         return "https://web-assets.al-enterprise.com/-/media/assets/internet/images/omniswitch-6860e-p48-left-4c-480x480-product-showcase.png?h=480&w=480&v=1&d=20220704T122032Z&hash=7A8A99DFFEB945EA9B4E35A7123E5426";
     } else if (model.startsWith('OS9900') || model.startsWith('OS9912')) {
         return "https://web-assets.al-enterprise.com/-/media/assets/internet/images/omniswitch-9907-photo-right-4c-480x480-web.png?h=480&w=480&v=1&d=20220802T091625Z&hash=9FD163873BA22C93391F497D4F0BFF59";
+      } else if (model.startsWith('Ixia') || model.startsWith('VM')) {
+      return "https://cdn.pressebox.de/a/42c853cb3cbd3ed0/attachments/0666997.attachment/filename/PerfectStormONE-10G_870-0123_R20.jpg";
     } else {
-      return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANQAAAA2CAYAAAC/UreRAAAACXBIWXMAABcSAAAXEgFnn9JSAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA91JREFUeNrsnb9v00AUx90QoFWpilSkLIh2ABaE6MhWL0yVIIiF0VlRJcLGgur/gFYqbChmYs0SiQ13YoOwILE1A0JsREKiiEK5V16QCflhfG6x489HOrlN4svl7r557y5396b29/edo2ZttbFkLm2T5h2ACGfPLzj3N68P6zdHXZyOSTsmhSY1t1q19rgbSv+j0kzBpJBVug9knEWTVkxaN+m1EXTbJC9zglJRieo3aTPIEVdMahhRheplZUdQim9Sl3aCnCFWS6yV2//E1LgxlJo4cc/cyJinG/ErA8vxlOTfoI0gg2OoONw0GmiOFZSqL1A/ctzArRpnwDZCVDsx3gcQVBaLLMbF7fX/0gir8SJmJ1/UAZtnUaiArgQ5ZT7af0tDLFOSrwIZrC0jKCjiZIXp+/4wC2XTuZtJbtJp9De0C+SY+l+CUrfNZiyzaOH6hbQJ5Nn1k77fb6G8FDKuIigoKNV+Qa2kkOmNhPd9oj0g57ilrJREV04A5NrtK1EHAOmBoAAOUVBpTF0z/Q0ISmmmkGeQ5Ka11cZpmgMmTVAbjt3q766T/IfhZZoDJkpQW62aTF3XLfKrax4IChCUikoszNMEeW1abuVAUDB5glJReeZyL6b7J6+pmXvqlmVxaQ6YSEGpqDbUasg29c6Al3T0uaUUNhnK+7AfCnJPedSTugpcLE9dZ+F6blnbYqw0cOxFU8DEC6pPXCKgMO0CqFA5AQkm2+U7QsQ6cT4fIKgUrNMS7h4gqPQIsE6AoNKxTmKZVmgCQFD2YnLN5SHVDwjKXkwy9d6k6gFBpSOmkHETICh7MXmICSadskQSMFdPV0UchpDkh9vASX54C0CuLFQvkoCf9iY/tUo7iAkKY6H0Km6YBJWSNXuyKDZIarEiS4l8hwWvUFBBOX3CWjfC2HZ+zcaF4yJr6GSDqwlrBIVl6tmjl7GC7E7PHP9YKh/bjT72Y+/79O6Xb5U8fvCZ2ZPOuQtn6AEZY3buhHPxcmXYF3f2LdTtO1fjvrZCcwOMn5QAAAQFgKAAEBQAxKP89tWHz193904V8cO/a7+nB2SMhcqcc+3WpbwWv1t+/OD5E/PHXZoSsoBEgc+xoEJx+UKaESAVmqWtVk1WQ3SoCwA7d+9AUPqPT30AWLEhR+0dCEpPft2mTgASIR6eLCr/Y9rcc+xC2QAUlWrvJOXfgtLtGi6iAvgnatHdGP3xodqICiAWvagzQfTBQfGhRFTLjKkAhiJxpN1BUWcGBgvouX+6hd132HkLIMjkgz8qfNO4cDZyY6A7cj21XJz2CkVCPDXx2kL9zXYkPwUYAG4LHegAiftIAAAAAElFTkSuQmCC";
-    }
+    return "https://i.postimg.cc/hPj6CpYh/combine-images-2-removebg-preview.png";
+  }
   }
 
   useEffect(() => {
@@ -610,32 +647,49 @@ export default function ViewReservation() {
         <div id="dutMap"></div>
       </div>
     </div>
-      {showNodeSlideOver && (
-      <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-        <div className="overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
-            <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
-            <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
-                <div className="flex h-full flex-col bg-white py-6 shadow-xl">
-                <div className="px-4 sm:px-6">
+    {showNodeSlideOver && (
+  <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+    <div className="overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
+        <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
+          <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
+            <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+              <div className="px-4 sm:px-6">
                 <h3 className="text-xl font-bold mb-4">Node Information</h3>
-                <div className="relative mt-6 flex-1 px-4 sm:px-6"></div>
-              </div>
+                <div className="relative mt-6">
                   <div className="px-4 sm:px-6">
-                    <h2 className="text-base font-semibold leading-6 text-gray-900" id="slide-over-title">{selectedNode.id}</h2>
-                    <p>{selectedNode.model}</p>
-                    <p>{selectedNode.console}</p>
-                    <p>{selectedNode.ip_mgmt}</p>
+                    <p>ID: {selectedNode.id}</p>
+                    <p>Model: {selectedNode.model}</p>
+                    <p>IP: {selectedNode.ip_mgnt}</p>
+
+                    {selectedNode.model.startsWith('VM') && (
+                      <>
+                        <p>TV_ID: {selectedNode.TV_ID}</p>
+                        <p>Username: {selectedNode.username}</p>
+                        <p>Password: {selectedNode.password}</p>
+                      </>
+                    )}
                     <br />
                     <button 
-                        className="mt-4 bg-white text-purple-600 border-2 border-purple-600 py-2 px-4  rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
-                        onClick={() => {
-                          handleRelease();
-                          setShowNodeSlideOver(false);
-                        }}
+                      className="mt-4 bg-white text-purple-600 border-2 border-purple-600 py-2 px-4 rounded-md shadow-md hover:bg-gray-200 hover:border-purple-700 hover:text-purple-700 transition-colors duration-200 flex items-center justify-center" 
+                      onClick={() => {
+                        handleRelease();
+                        setShowNodeSlideOver(false);
+                      }}
                     >
-                        Release device
+                      Release device
                     </button>
+                    {selectedNode.type == "switch" && (
+                    <button 
+                      className="mt-4 bg-white text-blue-600 border-2 border-blue-600 py-2 px-4 rounded-md shadow-md hover:bg-gray-200 hover:border-blue-700 hover:text-blue-700 transition-colors duration-200 flex items-center justify-center" 
+                      onClick={() => {
+                        handleResetSwitch();
+                        setShowNodeSlideOver(false);
+                      }}
+                    >
+                      Reset to default config
+                    </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -643,7 +697,10 @@ export default function ViewReservation() {
           </div>
         </div>
       </div>
-    )}
+    </div>
+  </div>
+)}
+
     {connectMode && (
       <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
         <div className="overflow-hidden">

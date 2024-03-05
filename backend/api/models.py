@@ -93,6 +93,10 @@ class Dut(models.Model):
     reserv = models.ForeignKey(Reservation, models.SET_NULL, blank=True, null=True)
     positionX = models.FloatField(null=True, blank=True)
     positionY = models.FloatField(null=True, blank=True)
+    TV_ID = models.IntegerField(primary_key=True)
+    username = models.CharField(max_length=30)
+    password = models.CharField(max_length=30)
+    type=models.CharField(max_length=30)
 
     def changeBanner(self):
         user = "nobody" if self.reserv is None else self.reserv.creator
@@ -142,12 +146,12 @@ class Dut(models.Model):
         else:
             print('cannot auth to ' + self.ip_mgnt)
             return False
-        try :
-            cli(self.ip_mgnt,header, "reload from working no rollback-timeout")
-            return True
-        except Exception as e:
-            print(e)
-            return False
+        # try :
+        #     cli(self.ip_mgnt,header, "reload from working no rollback-timeout")
+        #     return True
+        # except Exception as e:
+        #     print(e)
+        #     return False
 
     def unlink(self):
         self.reserv = None
@@ -172,7 +176,8 @@ class Link(models.Model):
     targetID = models.IntegerField()
     core_ip = models.CharField(max_length=15)
     source_port = models.CharField(max_length=10)
-    target_port = models.CharField(max_length=10)
+    source_dut_port = models.CharField(max_length=10)
+    target_dut_port = models.CharField(max_length=10)
     source = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='source', related_name='source_links')
     target = models.ForeignKey(Dut, on_delete=models.CASCADE, db_column='target', related_name='target_links')
     service = models.IntegerField(blank=True, null=True)
@@ -194,6 +199,8 @@ class Link(models.Model):
             cli(self.core_ip,header, "service l2profile 'spbbackbone' 802.1x tunnel 802.1ab peer".format(service_nbr))
             cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
             cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
+            cli(self.core_ip,header, "interfaces port {1} admin-state enable".format(self.source_port))
+            cli(self.core_ip,header, "write-memory")
 
             return True
         except Exception as e:
@@ -213,6 +220,8 @@ class Link(models.Model):
             cli(self.core_ip,header, "no service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "service spb {0} admin-state disable".format(service_nbr))
             cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
+            cli(self.core_ip,header, "interfaces port {1} admin-state disable".format(self.source_port))
+            cli(self.core_ip,header, "write-memory")
 
             return True
         except Exception as e:
@@ -232,6 +241,22 @@ class Link(models.Model):
             self.save()
             return True
         return False
+    
+    def reset(self,service_nbr):
+        service_nbr = str(service_nbr)
+        
+        header = get_header(self.core_ip)
+        if header[0] : 
+            header = header[1]
+        else:
+            return False
+        cli(self.core_ip,header, "write-memory")
+        cli(self.core_ip,header,"cp /flash/working/vcboot.cfg /flash/working/vcboot_previous.cfg")
+        cli(self.core_ip,header,"cp /flash/working/vcsetup.cfg /flash/working/vcsetup_previous.cfg")
+        cli(self.core_ip,header,"cp /flash/remotelab/vcboot_default.cfg /flash/working/vcboot.cfg")
+        cli(self.core_ip,header,"cp /flash/remotelab/vcsetup_default.cfg /flash/working/vcsetup.cfg")
+        cli(self.core_ip,header, "reload from working no rollback-timeout")
+        cli(self.core_ip,header, "y")
 
     class Meta:
         managed = False

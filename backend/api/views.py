@@ -127,6 +127,7 @@ def welcome(request):
             "/list_reservation/<str:pk>/",
             "/reserve/",
             "/release/",
+            "/reset/",
             "/connect/",
             "/disconnect/",
             "/list_dut/all/",
@@ -332,6 +333,57 @@ def release(request):
 
     return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def reset(request):
+    """
+    Structure:
+    {
+        "duts": [
+            {
+                "dut": 419
+            },
+            {
+                "dut": 676
+            }
+        ]
+    }
+    """
+    if 'duts' in request.data:
+        reserved = request.data['duts']
+        duts = []
+        for item in reserved:
+            if 'dut' in item:
+                dut = get_object_or_404(Dut, id=item['dut'])
+
+                # Disconnect associated links
+                if 'links' in request.data:
+                    links_data = request.data['links']
+                    for link_list in links_data.values():
+                        for link in link_list:
+                            link_obj = get_object_or_404(Link, id=link['id'])
+                            # Check if the link is associated with the current DUT
+                            if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
+                                link_obj.target = None
+                                link_obj.targetID = None
+                                link_obj.target_port = None
+                                link_obj.save()
+                                if link_obj.deleteService():
+                                    duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
+                                else:
+                                    duts.append({"Fail": f"Failed to disconnect link associated with DUT {dut.id}"})
+
+
+                dut.reset(SERVICE)
+
+                dut.unlink()
+                dut.save()
+                duts.append(DutSerializer(instance=dut).data)
+
+        return Response({"Success"}, status=status.HTTP_200_OK)
+
+    return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])

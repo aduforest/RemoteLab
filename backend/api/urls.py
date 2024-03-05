@@ -18,6 +18,7 @@ urlpatterns = [
     path('list_reservation/<str:pk>/', views.list_reservation_by_id),
     path('reserve/', views.reserve),
     path('release/', views.release),
+    path('reset/', views.reset),
     path('connect/', views.connect),
     path('disconnect/', views.disconnect),
     path('list_dut/all/', views.list_dut_state),

@@ -157,7 +157,9 @@ export default function Equipment() {
         return "https://web-assets.al-enterprise.com/-/media/assets/internet/images/omniswitch-6860e-p48-left-4c-480x480-product-showcase.png?h=480&w=480&v=1&d=20220704T122032Z&hash=7A8A99DFFEB945EA9B4E35A7123E5426";
     } else if (model.startsWith('OS9900') || model.startsWith('OS9912')) {
         return "https://web-assets.al-enterprise.com/-/media/assets/internet/images/omniswitch-9907-photo-right-4c-480x480-web.png?h=480&w=480&v=1&d=20220802T091625Z&hash=9FD163873BA22C93391F497D4F0BFF59";
-    } else {
+    } else if (model.startsWith('Ixia') || model.startsWith('VM')) {
+        return "https://cdn.pressebox.de/a/42c853cb3cbd3ed0/attachments/0666997.attachment/filename/PerfectStormONE-10G_870-0123_R20.jpg";
+      } else {
       return "https://i.postimg.cc/hPj6CpYh/combine-images-2-removebg-preview.png";
     }
   }

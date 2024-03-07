@@ -316,7 +316,7 @@ def release(request):
                             if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
                                 link_obj.target = None
                                 link_obj.targetID = None
-                                link_obj.target_port = None
+                                link_obj.target_dut_port = None
                                 link_obj.save()
                                 if link_obj.deleteService():
                                     duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
@@ -353,29 +353,32 @@ def reset(request):
     if 'duts' in request.data:
         reserved = request.data['duts']
         duts = []
+        print("resetting")
         for item in reserved:
             if 'dut' in item:
                 dut = get_object_or_404(Dut, id=item['dut'])
 
                 # Disconnect associated links
-                if 'links' in request.data:
-                    links_data = request.data['links']
-                    for link_list in links_data.values():
-                        for link in link_list:
-                            link_obj = get_object_or_404(Link, id=link['id'])
-                            # Check if the link is associated with the current DUT
-                            if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
-                                link_obj.target = None
-                                link_obj.targetID = None
-                                link_obj.target_port = None
-                                link_obj.save()
-                                if link_obj.deleteService():
-                                    duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
-                                else:
-                                    duts.append({"Fail": f"Failed to disconnect link associated with DUT {dut.id}"})
+                # if 'links' in request.data:
+                #     links_data = request.data['links']
+                #     print(links_data)
+                #     for link_list in links_data.values():
+                #         for link in link_list:
+                #             link_obj = get_object_or_404(Link, id=link['id'])
+                #             # Check if the link is associated with the current DUT
+                #             if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
+                #                 link_obj.target = None
+                #                 link_obj.targetID = None
+                #                 link_obj.target_dut_port = None
+                #                 link_obj.save()
+                #                 if link_obj.deleteService():
+                #                     duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
+                #                 else:
+                #                     duts.append({"Fail": f"Failed to disconnect link associated with DUT {dut.id}"})
 
 
-                dut.reset(SERVICE)
+                dut.resetConfig()
+                print("finished reset")
 
                 dut.unlink()
                 dut.save()
@@ -388,14 +391,10 @@ def reset(request):
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def list_dut_by_reservation(request):
-    if 'reserv' in request.GET:
-        reserv = request.GET['reserv']
-        duts = get_list_or_404(Dut, reserv=reserv)
-        serializer = DutSerializer(instance=duts, many=True)
-        return Response({"duts": serializer.data}, status=status.HTTP_200_OK)
-    return Response({"detail": "Param not valid."}, status=status.HTTP_404_NOT_FOUND)
-
+def list_dut_by_reservation(request, reserv):
+    duts = get_list_or_404(Dut, reserv=reserv)
+    serializer = DutSerializer(instance=duts, many=True)
+    return Response({"duts": serializer.data}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
@@ -438,6 +437,7 @@ def connect(request):
         ]
     }
     """
+
     if 'links' in request.data:
         links = request.data['links']
         back = []
@@ -447,7 +447,7 @@ def connect(request):
                 linkB = get_object_or_404(Link, id=item['portB'])
                 linkA.target,linkB.target = linkB.source, linkA.source
                 linkA.targetID, linkB.targetID = linkB.id, linkA.id
-                linkA.target_port, linkB.target_port = linkB.source_port, linkA.source_port
+                linkA.target_dut_port, linkB.target_dut_port = linkB.source_dut_port, linkA.source_dut_port
 
                 if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
@@ -465,16 +465,17 @@ def connect(request):
                 else:
                     BVLAN += 1
 
-                if SERVICE >= 5000:
-                    SERVICE = 4001
+                max_service = Link.objects.aggregate(Max('service'))['service__max']
+                if max_service is not None:
+                    SERVICE = max_service + 1
                 else:
-                    SERVICE+=1
+                    SERVICE = 4001
 
                 
                 if linkA.setService(SERVICE, BVLAN) and linkB.setService(SERVICE, BVLAN):
                     back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 else:
-                    back.append({"Fail" : "Tunnel not created"})
+                    back.append({"Fail" : "Tunnel not created between {} {} and {} {} on service {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port, SERVICE)})
             else:
                 back.append({"Fail" : "Wrong formating of the port"})
 
@@ -516,8 +517,8 @@ def disconnect(request):
                 linkB.target = None
                 linkA.targetID = None
                 linkB.targetID = None
-                linkA.target_port = None
-                linkB.target_port = None
+                linkA.target_dut_port = None
+                linkB.target_dut_port = None
 
                 if linkA.source.reserv == None or linkB.source.reserv == None:
                     back.append({"Fail" : "One of the DUTs is not reserved."})
@@ -531,7 +532,7 @@ def disconnect(request):
                 if linkA.source == linkB.source:
                     if linkA.deleteService() or linkB.deleteService():
                         back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
-                elif linkA.deleteService() and linkB.deleteService():
+                elif linkA.deleteService(0) and linkB.deleteService(1):
                     back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 else:
                     back.append({"Fail" : "Tunnel not removed"})

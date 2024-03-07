@@ -29,6 +29,7 @@ export default function ViewReservation() {
   const [similarLinks, setSimilarLinks] = useState([]);
   const [canvasWidth, setCanvasWidth] = useState(window.innerWidth * 0.69);
   const [canvasHeight, setCanvasHeight] = useState(window.innerHeight * 0.8);
+  
 
   useEffect(() => {
     connectModeRef.current = connectMode;
@@ -80,7 +81,7 @@ export default function ViewReservation() {
       });
       setReservation(reservationResponse.data);
 
-      const dutsResponse = await Axios.get(`list_dut/?reserv=${id}`, {
+      const dutsResponse = await Axios.get(`list_dut/${id}`, {
         headers: {
           'Authorization': authHeader()
         }
@@ -382,8 +383,9 @@ export default function ViewReservation() {
           target: duts.find(d => d.id === link.target),
           ID: link.id,
           targetID: link.targetID,
+          source_dut_port: link.source_dut_port,
           source_port: link.source_port,
-          target_port: link.target_port
+          target_dut_port: link.target_dut_port
         };
       });
 
@@ -662,11 +664,16 @@ export default function ViewReservation() {
                     <p>Model: {selectedNode.model}</p>
                     <p>IP: {selectedNode.ip_mgnt}</p>
 
-                    {selectedNode.model.startsWith('VM') && (
+                    {selectedNode.type == "VM" && (
                       <>
                         <p>TV_ID: {selectedNode.TV_ID}</p>
                         <p>Username: {selectedNode.username}</p>
                         <p>Password: {selectedNode.password}</p>
+                      </>
+                    )}
+                    {selectedNode.type == "switch" && (
+                      <>
+                        <p>Console: {selectedNode.console}</p>
                       </>
                     )}
                     <br />
@@ -729,7 +736,7 @@ export default function ViewReservation() {
                               className={`mr-2 w-4 h-4 rounded-full cursor-pointer hover:bg-gray-400 ${port === selectedPortA ? 'bg-blue-500' : 'bg-gray-300'}`} 
                               onClick={() => setSelectedPortA(port)}
                             ></div>
-                            {port.source_port}
+                            {port.source_dut_port}
                           </div>
                         ))}
                       </>
@@ -748,7 +755,7 @@ export default function ViewReservation() {
                               className={`mr-2 w-4 h-4 rounded-full cursor-pointer hover:bg-gray-400 ${port === selectedPortB ? 'bg-blue-500' : 'bg-gray-300'}`} 
                               onClick={() => setSelectedPortB(port)}
                             ></div>
-                            {port.source_port}
+                            {port.source_dut_port}
                           </div>
                         ))}
                       </>
@@ -807,8 +814,8 @@ export default function ViewReservation() {
                 
                     // Filter the links to exclude the reverse ones
                     const filteredLinks = links.filter(link => {
-                        const linkKey = `${link.source_port}-${link.target_port}`;
-                        const reverseLinkKey = `${link.target_port}-${link.source_port}`;
+                        const linkKey = `${link.source_dut_port}-${link.target_dut_port}`;
+                        const reverseLinkKey = `${link.target_dut_port}-${link.source_dut_port}`;
                 
                         if (!addedLinksSet.has(reverseLinkKey)) {
                             addedLinksSet.add(linkKey);
@@ -831,7 +838,7 @@ export default function ViewReservation() {
                             
                             {filteredLinks.map(link => (
                                 <option key={link.ID} value={link.ID}>
-                                    Link {link.source_port} - {link.target_port}
+                                    Link {link.source_dut_port} - {link.target_dut_port}
                                 </option>
                             ))}
                         </select>
@@ -842,10 +849,10 @@ export default function ViewReservation() {
               <br />
               <br />
               <strong>Source DUT:</strong> {selectedLink.source.model}
-              <p>Port: {selectedLink.source_port}</p>
+              <p>Port: {selectedLink.source_dut_port}</p>
               <br />
               <strong>Target DUT:</strong> {selectedLink.target.model}
-              <p>Port: {selectedLink.target_port}</p>
+              <p>Port: {selectedLink.target_dut_port}</p>
               <div className="flex flex-col">
                   <button 
                     className="mb-2 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 

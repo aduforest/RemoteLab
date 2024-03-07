@@ -5,6 +5,8 @@ import paramiko
 import requests
 from urllib3.exceptions import InsecurePlatformWarning
 from urllib3.exceptions import InsecureRequestWarning
+import logging
+
 
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -38,7 +40,6 @@ def get_header(ip):
                 return False, None
 
             token = body["result"]["data"]["token"]
-            print("Login Token is: " + token)
             query_header = {'ACCEPT': 'application/vnd.alcatellucentaos+json; version=1.0',
                             "Authorization": "Bearer " + token}
             return True, query_header
@@ -49,9 +50,11 @@ def get_header(ip):
         print('An error has occurred. ' + str(e))
         return False, None
 
+
 def cli(ip,header, cmd):
     query_url = "https://{}?domain=cli&cmd={}".format(ip, cmd)
     r = requests.get(query_url, headers=header, verify=False)
+    print(cmd)
     if r.status_code == 200:  # OK
         output = r.json()['result']['output']
         error = r.json()['result']['error']
@@ -61,11 +64,14 @@ def cli(ip,header, cmd):
         else:
             return output
 
-    elif r.status_code == 400 or r.status_code == 401:
-        raise Exception('Code ' + str(r.status_code))
-
     else:  # NOT OK
+        if "The service-id does not exist" in r.json()['result']['error']:
+            print("OK")
+            return 
+        error_message = f"Command: {cmd}, Status Code: {r.status_code}, IP: {ip}, Response: {r.json()['result']['error']}"
+        logging.error(error_message)
         raise Exception('Unknown error code ' + str(r.status_code))
+
 
 
 class Reservation(models.Model):
@@ -164,6 +170,39 @@ class Dut(models.Model):
         self.save()
         self.changeBanner()
 
+    def resetConfig(self):
+        print("resetting")
+        print(self.id)
+
+        try:
+            with paramiko.SSHClient() as ssh:
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(self.ip_mgnt, username='admin', password='switch', port=22, timeout=10)
+
+                commands = [
+                    "write memory",
+                    "cp /flash/working/vcboot.cfg /flash/working/vcboot_previous.cfg",
+                    "cp /flash/working/vcsetup.cfg /flash/working/vcsetup_previous.cfg",
+                    "cp /flash/remotelab/vcboot_default.cfg /flash/working/vcboot.cfg",
+                    "cp /flash/remotelab/vcsetup_default.cfg /flash/working/vcsetup.cfg",
+                    "reload from working no rollback-timeout",
+                    "y"
+                ]
+
+                for cmd in commands:
+                    stdin, stdout, stderr = ssh.exec_command(cmd)
+                    exit_status = stdout.channel.recv_exit_status()
+                    if exit_status != 0:
+                        print(f"Command '{cmd}' failed with exit status {exit_status}")
+                        return False
+
+                return True
+
+        except Exception as e:
+            print(f"SSH connection or command execution failed: {e}")
+            return False
+
+
 
     class Meta:
         managed = False
@@ -186,7 +225,6 @@ class Link(models.Model):
     def create_tunnel(self, bvlan, service_nbr):
         bvlan = str(bvlan)
         service_nbr = str(service_nbr)
-        print("create_tunnel")
         header = get_header(self.core_ip)
         if header[0] : 
             header = header[1]
@@ -194,14 +232,15 @@ class Link(models.Model):
             print('cannot auth to ' + self.core_ip)
             return False
         try :
+            cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
             cli(self.core_ip,header, "service spb {0} isid {0} bvlan {1}".format(service_nbr, bvlan))
+            cli(self.core_ip,header, "service spb {0} admin-state enable".format(service_nbr))
             cli(self.core_ip,header, "service {0} pseudo-wire enable".format(service_nbr))
-            cli(self.core_ip,header, "service l2profile 'spbbackbone' 802.1x tunnel 802.1ab peer".format(service_nbr))
+            cli(self.core_ip,header, "service l2profile 'spbbackbone' 802.1x tunnel 802.1ab peer")
             cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
             cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
-            cli(self.core_ip,header, "interfaces port {1} admin-state enable".format(self.source_port))
-            cli(self.core_ip,header, "write-memory")
-
+            cli(self.core_ip,header, "interfaces port {0} admin-state enable".format(self.source_port))
+            # cli(self.core_ip,header, "write memory")
             return True
         except Exception as e:
             print(e)
@@ -219,14 +258,31 @@ class Link(models.Model):
         try :
             cli(self.core_ip,header, "no service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "service spb {0} admin-state disable".format(service_nbr))
-            cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
-            cli(self.core_ip,header, "interfaces port {1} admin-state disable".format(self.source_port))
-            cli(self.core_ip,header, "write-memory")
+            cli(self.core_ip,header, "interfaces port {0} admin-state disable".format(self.source_port))
+            # cli(self.core_ip,header, "write memory")
 
             return True
         except Exception as e:
             print(e)
             return False
+        
+    def removeService(self, service_nbr):
+        service_nbr = str(service_nbr)
+        
+        header = get_header(self.core_ip)
+        if header[0] : 
+            header = header[1]
+        else:
+            return False
+        try :
+            cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
+            print("Removed {}".format(service_nbr))
+
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
 
     def setService(self, service, bvlan):
         if self.create_tunnel(bvlan, service):
@@ -235,28 +291,18 @@ class Link(models.Model):
             return True
         return False
     
-    def deleteService(self):
-        if self.delete_tunnel(self.service):
-            self.service = None
-            self.save()
-            return True
-        return False
-    
-    def reset(self,service_nbr):
-        service_nbr = str(service_nbr)
-        
-        header = get_header(self.core_ip)
-        if header[0] : 
-            header = header[1]
+    def deleteService(self, num):
+        if num ==0:
+            if self.delete_tunnel(self.service):
+                self.service = None
+                self.save()
+                return True
         else:
-            return False
-        cli(self.core_ip,header, "write-memory")
-        cli(self.core_ip,header,"cp /flash/working/vcboot.cfg /flash/working/vcboot_previous.cfg")
-        cli(self.core_ip,header,"cp /flash/working/vcsetup.cfg /flash/working/vcsetup_previous.cfg")
-        cli(self.core_ip,header,"cp /flash/remotelab/vcboot_default.cfg /flash/working/vcboot.cfg")
-        cli(self.core_ip,header,"cp /flash/remotelab/vcsetup_default.cfg /flash/working/vcsetup.cfg")
-        cli(self.core_ip,header, "reload from working no rollback-timeout")
-        cli(self.core_ip,header, "y")
+            if self.delete_tunnel(self.service) and self.removeService(self.service):
+                self.service = None
+                self.save()
+                return True
+        return False
 
     class Meta:
         managed = False

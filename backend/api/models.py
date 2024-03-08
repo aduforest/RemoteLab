@@ -186,7 +186,7 @@ class Dut(models.Model):
                     "cp /flash/remotelab/vcboot_default.cfg /flash/working/vcboot.cfg",
                     "cp /flash/remotelab/vcsetup_default.cfg /flash/working/vcsetup.cfg",
                     "reload from working no rollback-timeout",
-                    "y"
+                    "echo y | reload from working no rollback"
                 ]
 
                 for cmd in commands:
@@ -222,7 +222,7 @@ class Link(models.Model):
     service = models.IntegerField(blank=True, null=True)
 
 
-    def create_tunnel(self, bvlan, service_nbr):
+    def create_first_tunnel(self, bvlan, service_nbr):
         bvlan = str(bvlan)
         service_nbr = str(service_nbr)
         header = get_header(self.core_ip)
@@ -233,6 +233,29 @@ class Link(models.Model):
             return False
         try :
             cli(self.core_ip,header, "no service spb {0}".format(service_nbr))
+            cli(self.core_ip,header, "service spb {0} isid {0} bvlan {1}".format(service_nbr, bvlan))
+            cli(self.core_ip,header, "service spb {0} admin-state enable".format(service_nbr))
+            cli(self.core_ip,header, "service {0} pseudo-wire enable".format(service_nbr))
+            cli(self.core_ip,header, "service l2profile 'spbbackbone' 802.1x tunnel 802.1ab peer")
+            cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
+            cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
+            cli(self.core_ip,header, "interfaces port {0} admin-state enable".format(self.source_port))
+            # cli(self.core_ip,header, "write memory")
+            return True
+        except Exception as e:
+            print(e)
+            return False
+        
+    def create_second_tunnel(self, bvlan, service_nbr):
+        bvlan = str(bvlan)
+        service_nbr = str(service_nbr)
+        header = get_header(self.core_ip)
+        if header[0] : 
+            header = header[1]
+        else:
+            print('cannot auth to ' + self.core_ip)
+            return False
+        try :
             cli(self.core_ip,header, "service spb {0} isid {0} bvlan {1}".format(service_nbr, bvlan))
             cli(self.core_ip,header, "service spb {0} admin-state enable".format(service_nbr))
             cli(self.core_ip,header, "service {0} pseudo-wire enable".format(service_nbr))
@@ -284,11 +307,18 @@ class Link(models.Model):
             return False
 
 
-    def setService(self, service, bvlan):
-        if self.create_tunnel(bvlan, service):
-            self.service = service
-            self.save()
-            return True
+    def setService(self, service, bvlan, num):
+        if num==0:
+            if self.create_first_tunnel(bvlan, service):
+                print("Set first service {0}".format(service))
+                self.service = service
+                self.save()
+                return True
+        elif num==1:
+            if self.create_second_tunnel(bvlan, service):
+                print("Set second service {0}".format(service))
+                self.service = service
+                self.save()
         return False
     
     def deleteService(self, num):

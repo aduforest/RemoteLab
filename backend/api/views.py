@@ -313,7 +313,7 @@ def release(request):
                         for link in link_list:
                             link_obj = get_object_or_404(Link, id=link['id'])
                             # Check if the link is associated with the current DUT
-                            if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
+                            if (str(link_obj.source) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target) == str(dut.id):
                                 link_obj.target = None
                                 link_obj.targetID = None
                                 link_obj.target_dut_port = None
@@ -380,7 +380,6 @@ def reset(request):
                 dut.resetConfig()
                 print("finished reset")
 
-                dut.unlink()
                 dut.save()
                 duts.append(DutSerializer(instance=dut).data)
 
@@ -472,7 +471,7 @@ def connect(request):
                     SERVICE = 4001
 
                 
-                if linkA.setService(SERVICE, BVLAN) and linkB.setService(SERVICE, BVLAN):
+                if linkA.setService(SERVICE, BVLAN, 0) and linkB.setService(SERVICE, BVLAN, 1):
                     back.append({"Success" : "Connection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 else:
                     back.append({"Fail" : "Tunnel not created between {} {} and {} {} on service {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port, SERVICE)})

@@ -185,7 +185,6 @@ class Dut(models.Model):
                     "cp /flash/working/vcsetup.cfg /flash/working/vcsetup_previous.cfg",
                     "cp /flash/remotelab/vcboot_default.cfg /flash/working/vcboot.cfg",
                     "cp /flash/remotelab/vcsetup_default.cfg /flash/working/vcsetup.cfg",
-                    "reload from working no rollback-timeout",
                     "echo y | reload from working no rollback"
                 ]
 

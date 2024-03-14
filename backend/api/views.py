@@ -163,6 +163,7 @@ def create_reservation(request):
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def delete_reservation(request, pk):
+    print("DELETING")
     reservation = get_object_or_404(Reservation, id=pk)
     if reservation.creator == request.user or request.user.is_staff is True:
         serializer = ReservationSerializer(instance=reservation)
@@ -293,6 +294,7 @@ def release(request):
         ]
     }
     """
+    print("RELEASING")
     if 'duts' in request.data:
         reserved = request.data['duts']
         duts = []
@@ -305,6 +307,8 @@ def release(request):
                 dut.positionY = None
                 if dut.reserv is None:
                     duts.append({"Fail": f"DUT {dut.id} already released."})
+                
+                links_used=[]
 
                 # Disconnect associated links
                 if 'links' in request.data:
@@ -312,13 +316,21 @@ def release(request):
                     for link_list in links_data.values():
                         for link in link_list:
                             link_obj = get_object_or_404(Link, id=link['id'])
+                            print(link_obj.source.id)
+                            print(dut.id)
                             # Check if the link is associated with the current DUT
-                            if (str(link_obj.source) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target) == str(dut.id):
+                            if (str(link_obj.source.id) == str(dut.id) and str(link_obj.targetID)) or str(link_obj.target.id) == str(dut.id):
+                                print("GOT IT")
+                                if link_obj.targetID in links_used:
+                                    num=1
+                                else:
+                                    num=0
+                                    links_used.append(link_obj.id)
                                 link_obj.target = None
                                 link_obj.targetID = None
                                 link_obj.target_dut_port = None
                                 link_obj.save()
-                                if link_obj.deleteService():
+                                if link_obj.deleteService(num):
                                     duts.append({"Success": f"Disconnected link associated with DUT {dut.id}"})
                                 else:
                                     duts.append({"Fail": f"Failed to disconnect link associated with DUT {dut.id}"})
@@ -529,7 +541,7 @@ def disconnect(request):
 
 
                 if linkA.source == linkB.source:
-                    if linkA.deleteService() or linkB.deleteService():
+                    if linkA.deleteService(0) or linkB.deleteService(1):
                         back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})
                 elif linkA.deleteService(0) and linkB.deleteService(1):
                     back.append({"Success" : "Disconnection between {} {} and {} {}".format(linkA.source, linkA.source_port, linkB.source, linkB.source_port)})

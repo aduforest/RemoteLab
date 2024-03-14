@@ -48,14 +48,39 @@ export default function Reservation() {
         'Authorization': authHeader()
       }
     })
-    .then(response => {
-      setReservations(reservations.filter(reservation => reservation.id !== id));
-      setShowDropdown(null);
+    .then(() => {
+      // Fetch DUTs associated with the reservation
+      Axios.get(`list_dut/?reserv=${id}`, {
+        headers: {
+          'Authorization': authHeader()
+        }
+      })
+      .then(response => {
+        // Release DUTs associated with the reservation
+        const dutsToRelease = response.data.duts.map(dut => ({ dut: dut.id }));
+        Axios.post('release/', { duts: dutsToRelease }, {
+          headers: {
+            'Authorization': authHeader()
+          }
+        })
+        .then(() => {
+          // Update the state to remove the deleted reservation
+          setReservations(reservations.filter(reservation => reservation.id !== id));
+          setShowDropdown(null);
+        })
+        .catch(error => {
+          console.error('Error releasing DUTs:', error);
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching DUTs:', error);
+      });
     })
     .catch(error => {
       console.error('Error deleting reservation:', error);
     });
   };
+  
 
   const dropdownRef = useRef(null); // <-- Create a ref for the dropdown
 

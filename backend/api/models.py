@@ -152,12 +152,12 @@ class Dut(models.Model):
         else:
             print('cannot auth to ' + self.ip_mgnt)
             return False
-        # try :
-        #     cli(self.ip_mgnt,header, "reload from working no rollback-timeout")
-        #     return True
-        # except Exception as e:
-        #     print(e)
-        #     return False
+        try :
+            cli(self.ip_mgnt,header, "reload from working no rollback-timeout")
+            return True
+        except Exception as e:
+            print(e)
+            return False
 
     def unlink(self):
         self.reserv = None

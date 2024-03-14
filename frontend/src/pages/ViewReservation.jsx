@@ -792,68 +792,27 @@ export default function ViewReservation() {
         </div>
       </div>
     )}
-  {selectedLink && (
+{selectedLink && (
   <div className="relative z-10" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-  <div className="overflow-hidden">
-    <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
-      <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
-        <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
-          <div className="flex h-full flex-col bg-white py-6 shadow-xl">
+    <div className="overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" style={{ height: `${canvasHeight}px` }}>
+        <div className="pointer-events-none fixed inset-y-0 left-0 top-20 bottom-20 flex max-w-full">
+          <div className="pointer-events-auto relative" style={{ width: `${panelWidth}px` }}>
+            <div className="flex h-full flex-col bg-white py-6 shadow-xl">
               <div className="px-4 sm:px-6">
                 <h3 className="text-xl font-bold mb-4">Link Information</h3>
               </div>
               <div className="relative mt-6 flex-1 px-4 sm:px-6">
-
-              {(() => {
-                const identifier = `${selectedLink.source.id}-${selectedLink.target.id}`;
-                const identifier2 = `${selectedLink.target.id}-${selectedLink.source.id}`;
-                const links = similarLinks[identifier] || similarLinks[identifier2];
-                if (links && links.length > 1) {
-                    // Create a set to keep track of added links
-                    const addedLinksSet = new Set();
-                
-                    // Filter the links to exclude the reverse ones
-                    const filteredLinks = links.filter(link => {
-                        const linkKey = `${link.source_dut_port}-${link.target_dut_port}`;
-                        const reverseLinkKey = `${link.target_dut_port}-${link.source_dut_port}`;
-                
-                        if (!addedLinksSet.has(reverseLinkKey)) {
-                            addedLinksSet.add(linkKey);
-                            return true;
-                        }
-                        return false;
-                    });
-                
-                    return (
-                        <select 
-                            value={selectedDropdownLink}
-                            onChange={(e) => {
-                                const selectedID = e.target.value;
-                                const newSelectedLink = filteredLinks.find(link => link.ID === Number(selectedID));
-                                setSelectedLink(newSelectedLink);
-                            }}
-                        >
-                            {/* Default option */}
-                            <option value="" disabled selected>Select Link</option>
-                            
-                            {filteredLinks.map(link => (
-                                <option key={link.ID} value={link.ID}>
-                                    Link {link.source_dut_port} - {link.target_dut_port}
-                                </option>
-                            ))}
-                        </select>
-                    );
-                }
-            })()}
-
-              <br />
-              <br />
-              <strong>Source DUT:</strong> {selectedLink.source.model}
-              <p>Port: {selectedLink.source_dut_port}</p>
-              <br />
-              <strong>Target DUT:</strong> {selectedLink.target.model}
-              <p>Port: {selectedLink.target_dut_port}</p>
-              <div className="flex flex-col">
+                {selectedLink.source && selectedLink.target && (
+                  <>
+                    <strong>Source DUT:</strong> {selectedLink.source.model} - #{selectedLink.source.id}
+                    <p>Port: {selectedLink.source_dut_port}</p>
+                    <br />
+                    <strong>Target DUT:</strong> {selectedLink.target.model} - #{selectedLink.target.id}
+                    <p>Port: {selectedLink.target_dut_port}</p>
+                  </>
+                )}
+                <div className="flex flex-col">
                   <button 
                     className="mb-2 bg-red-200 text-white py-2 px-4 shadow-md hover:bg-red-300 active:bg-red-400" 
                     onClick={handleDisconnect}
@@ -875,6 +834,7 @@ export default function ViewReservation() {
     </div>
   </div>
 )}
+
   </main>
 );
 }

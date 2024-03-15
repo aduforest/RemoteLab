@@ -239,7 +239,7 @@ class Link(models.Model):
             cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
             cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "interfaces port {0} admin-state enable".format(self.source_port))
-            # cli(self.core_ip,header, "write memory")
+            cli(self.core_ip,header, "write memory")
             return True
         except Exception as e:
             print(e)
@@ -262,7 +262,7 @@ class Link(models.Model):
             cli(self.core_ip,header, "service access port {0} vlan-xlation enable l2profile 'spbbackbone'".format(self.source_port))
             cli(self.core_ip,header, "service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "interfaces port {0} admin-state enable".format(self.source_port))
-            # cli(self.core_ip,header, "write memory")
+            cli(self.core_ip,header, "write memory")
             return True
         except Exception as e:
             print(e)
@@ -281,7 +281,7 @@ class Link(models.Model):
             cli(self.core_ip,header, "no service {0} sap port {1}:all".format(service_nbr, self.source_port))
             cli(self.core_ip,header, "service spb {0} admin-state disable".format(service_nbr))
             cli(self.core_ip,header, "interfaces port {0} admin-state disable".format(self.source_port))
-            # cli(self.core_ip,header, "write memory")
+            cli(self.core_ip,header, "write memory")
 
             return True
         except Exception as e:

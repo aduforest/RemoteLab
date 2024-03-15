@@ -167,7 +167,7 @@ def delete_reservation(request, pk):
     reservation = get_object_or_404(Reservation, id=pk)
     if reservation.creator == request.user or request.user.is_staff is True:
         serializer = ReservationSerializer(instance=reservation)
-        reservation.unlinkAll()
+        # reservation.unlinkAll()
         reservation.delete()
         return Response({"reservation": serializer.data}, status=status.HTTP_200_OK)
     else:
@@ -309,12 +309,14 @@ def release(request):
                     duts.append({"Fail": f"DUT {dut.id} already released."})
                 
                 links_used=[]
+                print("HERES THE REQUEST DATA: " + str(request.data['links']))
 
                 # Disconnect associated links
                 if 'links' in request.data:
                     links_data = request.data['links']
                     for link_list in links_data.values():
                         for link in link_list:
+                            print(link['id'])
                             link_obj = get_object_or_404(Link, id=link['id'])
                             print(link_obj.source.id)
                             print(dut.id)
@@ -403,7 +405,9 @@ def reset(request):
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def list_dut_by_reservation(request, reserv):
+    print("AFDYEWVQAFUJE")
     duts = get_list_or_404(Dut, reserv=reserv)
+    print(duts)
     serializer = DutSerializer(instance=duts, many=True)
     return Response({"duts": serializer.data}, status=status.HTTP_200_OK)
 

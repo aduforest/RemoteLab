@@ -42,43 +42,55 @@ export default function Reservation() {
 
   };
 
-  const deleteReservation = (id) => {
-    Axios.delete(`delete_reservation/${id}/`, {
-      headers: {
-        'Authorization': authHeader()
-      }
-    })
-    .then(() => {
+  const deleteReservation = async (id) => {
+    try {
       // Fetch DUTs associated with the reservation
-      Axios.get(`list_dut/?reserv=${id}`, {
+      const dutsResponse = await Axios.get(`list_dut/${id}`, {
         headers: {
           'Authorization': authHeader()
         }
-      })
-      .then(response => {
-        // Release DUTs associated with the reservation
-        const dutsToRelease = response.data.duts.map(dut => ({ dut: dut.id }));
-        Axios.post('release/', { duts: dutsToRelease }, {
-          headers: {
-            'Authorization': authHeader()
-          }
-        })
-        .then(() => {
-          // Update the state to remove the deleted reservation
-          setReservations(reservations.filter(reservation => reservation.id !== id));
-          setShowDropdown(null);
-        })
-        .catch(error => {
-          console.error('Error releasing DUTs:', error);
-        });
-      })
-      .catch(error => {
-        console.error('Error fetching DUTs:', error);
       });
-    })
-    .catch(error => {
-      console.error('Error deleting reservation:', error);
-    });
+      console.log('list_dut RESPONSE:', dutsResponse.data);
+  
+      // Initialize the links dictionary outside the loop
+      const links_dict = {};
+  
+      // Check if there are DUTs to release
+      if (dutsResponse.data.duts.length > 0) {
+        // Release DUTs associated with the reservation individually
+        for (const dut of dutsResponse.data.duts) {
+          const linkResponses = await Promise.all(dutsResponse.data.duts.map(dut => 
+            Axios.get(`list_link/?dut=${dut.id}`, {
+              headers: {
+                'Authorization': authHeader()
+              }
+            })
+          ));
+          linkResponses.forEach((response, index) => {
+            links_dict[dutsResponse.data.duts[index].id] = response.data.connected;
+          });
+          await Axios.post('release/', { duts: [{ dut: dut.id }], links: links_dict }, {
+            headers: {
+              'Authorization': authHeader()
+            }
+          });
+        }
+
+      }
+  
+      // Delete the reservation after releasing all DUTs
+      await Axios.delete(`delete_reservation/${id}/`, {
+        headers: {
+          'Authorization': authHeader()
+        }
+      });
+  
+      // Update the state to remove the deleted reservation
+      setReservations(reservations.filter(reservation => reservation.id !== id));
+      setShowDropdown(null);
+    } catch (error) {
+      console.error('Error in deleteReservation:', error);
+    }
   };
   
 

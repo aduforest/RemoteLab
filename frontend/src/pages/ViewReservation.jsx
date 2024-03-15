@@ -114,6 +114,7 @@ export default function ViewReservation() {
         links[fetchedDuts[index].id] = response.data.connected;
         ports[fetchedDuts[index].id] = response.data.available;
       });
+      
       setDutLinks(links);
       setAvailablePorts(ports);
     } catch (error) {
